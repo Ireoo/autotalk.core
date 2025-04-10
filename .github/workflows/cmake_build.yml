@@ -88,102 +88,12 @@ jobs:
           brew install llvm libomp
           echo "已安装Metal AI支持所需依赖"
       
-      - name: 设置CMake
-        uses: lukka/get-cmake@latest
-      
-      - name: 创建MacOS专用CMakeLists.txt
+      - name: 编译MacOS版本
         run: |
-          # 创建全新的MacOS专用CMakeLists.txt而不是修改原始文件
-          cat > macos_cmakelists.txt << EOL
-          cmake_minimum_required(VERSION 3.18)
-          project(AutoTalkMetal LANGUAGES CXX)
-          
-          # 设置模块路径
-          list(APPEND CMAKE_MODULE_PATH \${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-          
-          # 设置C++标准
-          set(CMAKE_CXX_STANDARD 14)
-          set(CMAKE_CXX_STANDARD_REQUIRED ON)
-          
-          # 设置输出目录
-          set(CMAKE_RUNTIME_OUTPUT_DIRECTORY \${CMAKE_BINARY_DIR}/bin)
-          
-          # 添加whisper.cpp库路径
-          add_subdirectory(whisper.cpp)
-          include_directories(\${CMAKE_CURRENT_SOURCE_DIR}/whisper.cpp)
-          include_directories(\${CMAKE_CURRENT_SOURCE_DIR}/whisper.cpp/include)
-          
-          # 禁用CUDA, 启用Metal
-          option(GGML_CUDA "Enable CUDA for GPU acceleration" OFF)
-          option(GGML_METAL "Enable Metal for GPU acceleration on macOS" ON)
-          
-          # 添加源文件
-          add_executable(autotalk src/main.cpp src/audio_recorder.cpp)
-          
-          # 链接autotalk所需的库
-          target_link_libraries(autotalk PRIVATE whisper)
-          
-          if(GGML_METAL)
-              target_compile_definitions(autotalk PRIVATE GGML_USE_METAL)
-              message(STATUS "启用Metal加速")
-          endif()
-          
-          # 输出项目信息
-          message(STATUS "========== AutoTalk Metal项目配置 ==========")
-          message(STATUS "项目名称: \${PROJECT_NAME}")
-          message(STATUS "CMake版本: \${CMAKE_VERSION}")
-          message(STATUS "构建类型: \${CMAKE_BUILD_TYPE}")
-          message(STATUS "Metal加速: \${GGML_METAL}")
-          message(STATUS "=======================================")
-          EOL
-          
-          # 备份原始CMakeLists.txt并使用新的文件
-          cp CMakeLists.txt CMakeLists.txt.original
-          cp macos_cmakelists.txt CMakeLists.txt
-          
-          # 显示最终的CMakeLists.txt
-          echo "MacOS专用CMakeLists.txt内容:"
-          cat CMakeLists.txt
-      
-      - name: CMake配置和构建
-        run: |
-          set -e  # 出错时立即退出
-          
-          mkdir -p build
-          cd build
-          
-          # 设置LLVM环境变量
-          export LLVM_PATH=$(brew --prefix llvm)
-          export CC=$LLVM_PATH/bin/clang
-          export CXX=$LLVM_PATH/bin/clang++
-          export LDFLAGS="-L$LLVM_PATH/lib -Wl,-rpath,$LLVM_PATH/lib"
-          export CPPFLAGS="-I$LLVM_PATH/include"
-          
-          echo "配置MacOS版本的AutoTalk (Metal版本)..."
-          cmake .. -DCMAKE_BUILD_TYPE=Release || {
-            echo "CMake配置失败:"
-            cat CMakeFiles/CMakeError.log || echo "无法显示CMake错误日志"
-            exit 1
-          }
-          
-          echo "编译MacOS版本的AutoTalk (Metal版本)..."
-          cmake --build . --config Release || {
-            echo "构建失败"
-            exit 1
-          }
-          
-          echo "AutoTalk Metal版本编译完成!"
-          
-          # 恢复原始CMakeLists.txt
-          cd ..
-          cp CMakeLists.txt.original CMakeLists.txt
-      
-      - name: 保存构建产物
-        uses: actions/upload-artifact@v4
-        with:
-          name: autotalk-cmake-macos
-          path: build/bin/autotalk
-          if-no-files-found: warn
+          chmod +x docker/macos/build_mac_metal.sh
+          ./docker/macos/build_mac_metal.sh
+          mkdir -p build_output/macos_metal
+          cp output/bin/autotalk build_output/macos_metal/
   
   build-models:
     runs-on: ubuntu-latest
