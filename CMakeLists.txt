@@ -22,6 +22,10 @@ endif()
 
 enable_language(CUDA)
 
+# 查找CUDA包
+find_package(CUDA REQUIRED)
+include_directories(${CUDA_INCLUDE_DIRS})
+
 # 检查CUDA版本
 check_cuda_version()
 
@@ -33,17 +37,32 @@ message(STATUS "设置CUDA架构: ${CMAKE_CUDA_ARCHITECTURES}")
 set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
+# 设置C++标准
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # 设置输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+# 添加whisper.cpp库路径
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/whisper.cpp)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/whisper.cpp/include)
+
+# 定义CUDA支持宏
+add_definitions(-DUSE_CUDA)
+
 # 添加源文件
 add_executable(simple_cuda_test src/simple_cuda_test.cu)
+add_executable(cuda_test src/cuda_test.cpp)
 
 # 设置编译属性
 set_target_properties(simple_cuda_test PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     POSITION_INDEPENDENT_CODE ON
 )
+
+# 链接CUDA库
+target_link_libraries(cuda_test PRIVATE ${CUDA_LIBRARIES})
 
 # 输出项目信息
 message(STATUS "========== CUDA测试项目配置 ==========")
@@ -52,4 +71,5 @@ message(STATUS "CMake版本: ${CMAKE_VERSION}")
 message(STATUS "CUDA版本: ${CMAKE_CUDA_COMPILER_VERSION}")
 message(STATUS "构建类型: ${CMAKE_BUILD_TYPE}")
 message(STATUS "目标CUDA架构: ${CMAKE_CUDA_ARCHITECTURES}")
+message(STATUS "CUDA库: ${CUDA_LIBRARIES}")
 message(STATUS "=======================================") 
