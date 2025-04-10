@@ -90,32 +90,53 @@ jobs:
         with:
           submodules: recursive
       
-      - name: 安装音频库和Meta支持
+      - name: 安装音频库和Metal支持
         run: |
           brew install portaudio
           brew install llvm libomp
-          echo "已安装Meta AI支持所需依赖"
+          echo "已安装Metal AI支持所需依赖"
       
       - name: 设置CMake
         uses: lukka/get-cmake@latest
       
-      - name: 创建模拟CMakeLists.txt用于MacOS
+      - name: 修改CMakeLists.txt完全移除CUDA依赖
         run: |
-          # 确保原始CMakeLists.txt能够在没有CUDA的情况下编译
+          # 完全移除CUDA依赖
           sed -i.bak 's/LANGUAGES CXX CUDA/LANGUAGES CXX/g' CMakeLists.txt
+          sed -i.bak 's/check_language(CUDA)/#check_language(CUDA)/g' CMakeLists.txt
+          sed -i.bak 's/enable_language(CUDA)/#enable_language(CUDA)/g' CMakeLists.txt
+          sed -i.bak 's/find_package(CUDA REQUIRED)/#find_package(CUDA REQUIRED)/g' CMakeLists.txt
+          sed -i.bak 's/include_directories(${CUDA_INCLUDE_DIRS})/#include_directories(${CUDA_INCLUDE_DIRS})/g' CMakeLists.txt
+          sed -i.bak 's/check_cuda_version()/#check_cuda_version()/g' CMakeLists.txt
+          sed -i.bak 's/set(CMAKE_CUDA_ARCHITECTURES 75)/#set(CMAKE_CUDA_ARCHITECTURES 75)/g' CMakeLists.txt
+          sed -i.bak 's/set(CMAKE_CUDA_STANDARD 14)/#set(CMAKE_CUDA_STANDARD 14)/g' CMakeLists.txt
+          sed -i.bak 's/set(CMAKE_CUDA_STANDARD_REQUIRED ON)/#set(CMAKE_CUDA_STANDARD_REQUIRED ON)/g' CMakeLists.txt
+          
+          # 修改特定的CUDA相关目标
+          sed -i.bak 's/add_executable(simple_cuda_test src\/simple_cuda_test.cu)/#add_executable(simple_cuda_test src\/simple_cuda_test.cu)/g' CMakeLists.txt
+          sed -i.bak 's/add_executable(cuda_test src\/cuda_test.cpp)/#add_executable(cuda_test src\/cuda_test.cpp)/g' CMakeLists.txt
+          sed -i.bak 's/set_target_properties(simple_cuda_test/#set_target_properties(simple_cuda_test/g' CMakeLists.txt
+          sed -i.bak 's/target_link_libraries(cuda_test/#target_link_libraries(cuda_test/g' CMakeLists.txt
+          sed -i.bak 's/target_link_libraries(autotalk PRIVATE whisper ${CUDA_LIBRARIES})/target_link_libraries(autotalk PRIVATE whisper)/g' CMakeLists.txt
           sed -i.bak 's/add_definitions(-DUSE_CUDA)/#add_definitions(-DUSE_CUDA)/g' CMakeLists.txt
           sed -i.bak 's/option(GGML_CUDA "Enable CUDA for GPU acceleration" ON)/option(GGML_CUDA "Enable CUDA for GPU acceleration" OFF)/g' CMakeLists.txt
           sed -i.bak 's/target_compile_definitions(autotalk PRIVATE USE_CUDA)/#target_compile_definitions(autotalk PRIVATE USE_CUDA)/g' CMakeLists.txt
           
+          # 添加Metal支持
+          cat >> CMakeLists.txt << EOL
+          
           # 启用Metal支持
-          echo "option(GGML_METAL \"Enable Metal for GPU acceleration on macOS\" ON)" >> CMakeLists.txt
-          echo "if(GGML_METAL)" >> CMakeLists.txt
-          echo "    target_compile_definitions(autotalk PRIVATE GGML_USE_METAL)" >> CMakeLists.txt
-          echo "    message(STATUS \"启用Metal加速\")" >> CMakeLists.txt
-          echo "endif()" >> CMakeLists.txt
+          option(GGML_METAL "Enable Metal for GPU acceleration on macOS" ON)
+          if(GGML_METAL)
+              target_compile_definitions(autotalk PRIVATE GGML_USE_METAL)
+              message(STATUS "启用Metal加速")
+          endif()
+          EOL
       
       - name: CMake配置和构建
         run: |
+          set -e  # 出错时立即退出
+          
           mkdir -p build
           cd build
           
@@ -126,8 +147,23 @@ jobs:
           export LDFLAGS="-L$LLVM_PATH/lib -Wl,-rpath,$LLVM_PATH/lib"
           export CPPFLAGS="-I$LLVM_PATH/include"
           
+          echo "配置MacOS版本的AutoTalk (Metal版本)..."
           cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_CUDA=OFF -DGGML_CUDA=OFF -DGGML_METAL=ON
+          
+          if [ $? -ne 0 ]; then
+              echo "CMake配置失败!"
+              exit 1
+          fi
+          
+          echo "编译MacOS版本的AutoTalk (Metal版本)..."
           cmake --build . --config Release
+          
+          if [ $? -ne 0 ]; then
+              echo "AutoTalk编译失败!"
+              exit 1
+          fi
+          
+          echo "AutoTalk Metal版本编译完成!"
       
       - name: 保存构建产物
         uses: actions/upload-artifact@v4
