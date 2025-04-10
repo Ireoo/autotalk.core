@@ -91,48 +91,59 @@ jobs:
       - name: 设置CMake
         uses: lukka/get-cmake@latest
       
-      - name: 修改CMakeLists.txt完全移除CUDA依赖
+      - name: 创建MacOS专用CMakeLists.txt
         run: |
-          # 创建一个临时的备份
-          cp CMakeLists.txt CMakeLists.txt.original
-        
-          # 完全移除CUDA依赖
-          sed -i.bak 's/LANGUAGES CXX CUDA/LANGUAGES CXX/g' CMakeLists.txt
-          sed -i.bak 's/check_language(CUDA)/#check_language(CUDA)/g' CMakeLists.txt
-          sed -i.bak 's/enable_language(CUDA)/#enable_language(CUDA)/g' CMakeLists.txt
-          sed -i.bak 's/find_package(CUDA REQUIRED)/#find_package(CUDA REQUIRED)/g' CMakeLists.txt
-          sed -i.bak 's/include_directories(${CUDA_INCLUDE_DIRS})/#include_directories(${CUDA_INCLUDE_DIRS})/g' CMakeLists.txt
-          sed -i.bak 's/check_cuda_version()/#check_cuda_version()/g' CMakeLists.txt
-          sed -i.bak 's/set(CMAKE_CUDA_ARCHITECTURES 75)/#set(CMAKE_CUDA_ARCHITECTURES 75)/g' CMakeLists.txt
-          sed -i.bak 's/set(CMAKE_CUDA_STANDARD 14)/#set(CMAKE_CUDA_STANDARD 14)/g' CMakeLists.txt
-          sed -i.bak 's/set(CMAKE_CUDA_STANDARD_REQUIRED ON)/#set(CMAKE_CUDA_STANDARD_REQUIRED ON)/g' CMakeLists.txt
+          # 创建全新的MacOS专用CMakeLists.txt而不是修改原始文件
+          cat > macos_cmakelists.txt << EOL
+          cmake_minimum_required(VERSION 3.18)
+          project(AutoTalkMetal LANGUAGES CXX)
           
-          # 修改特定的CUDA相关目标
-          sed -i.bak 's/add_executable(simple_cuda_test src\/simple_cuda_test.cu)/#add_executable(simple_cuda_test src\/simple_cuda_test.cu)/g' CMakeLists.txt
-          sed -i.bak 's/add_executable(cuda_test src\/cuda_test.cpp)/#add_executable(cuda_test src\/cuda_test.cpp)/g' CMakeLists.txt
-          sed -i.bak 's/set_target_properties(simple_cuda_test/#set_target_properties(simple_cuda_test/g' CMakeLists.txt
-          sed -i.bak 's/target_link_libraries(cuda_test/#target_link_libraries(cuda_test/g' CMakeLists.txt
-          sed -i.bak 's/target_link_libraries(autotalk PRIVATE whisper ${CUDA_LIBRARIES})/target_link_libraries(autotalk PRIVATE whisper)/g' CMakeLists.txt
-          sed -i.bak 's/add_definitions(-DUSE_CUDA)/#add_definitions(-DUSE_CUDA)/g' CMakeLists.txt
-          sed -i.bak 's/option(GGML_CUDA "Enable CUDA for GPU acceleration" ON)/option(GGML_CUDA "Enable CUDA for GPU acceleration" OFF)/g' CMakeLists.txt
-          sed -i.bak 's/target_compile_definitions(autotalk PRIVATE USE_CUDA)/#target_compile_definitions(autotalk PRIVATE USE_CUDA)/g' CMakeLists.txt
+          # 设置模块路径
+          list(APPEND CMAKE_MODULE_PATH \${CMAKE_CURRENT_SOURCE_DIR}/cmake)
           
-          # 创建Metal支持文件
-          cat > mac_metal.cmake << EOL
-          # Metal支持
+          # 设置C++标准
+          set(CMAKE_CXX_STANDARD 14)
+          set(CMAKE_CXX_STANDARD_REQUIRED ON)
+          
+          # 设置输出目录
+          set(CMAKE_RUNTIME_OUTPUT_DIRECTORY \${CMAKE_BINARY_DIR}/bin)
+          
+          # 添加whisper.cpp库路径
+          add_subdirectory(whisper.cpp)
+          include_directories(\${CMAKE_CURRENT_SOURCE_DIR}/whisper.cpp)
+          include_directories(\${CMAKE_CURRENT_SOURCE_DIR}/whisper.cpp/include)
+          
+          # 禁用CUDA, 启用Metal
+          option(GGML_CUDA "Enable CUDA for GPU acceleration" OFF)
           option(GGML_METAL "Enable Metal for GPU acceleration on macOS" ON)
+          
+          # 添加源文件
+          add_executable(autotalk src/main.cpp src/audio_recorder.cpp)
+          
+          # 链接autotalk所需的库
+          target_link_libraries(autotalk PRIVATE whisper)
+          
           if(GGML_METAL)
               target_compile_definitions(autotalk PRIVATE GGML_USE_METAL)
               message(STATUS "启用Metal加速")
           endif()
+          
+          # 输出项目信息
+          message(STATUS "========== AutoTalk Metal项目配置 ==========")
+          message(STATUS "项目名称: \${PROJECT_NAME}")
+          message(STATUS "CMake版本: \${CMAKE_VERSION}")
+          message(STATUS "构建类型: \${CMAKE_BUILD_TYPE}")
+          message(STATUS "Metal加速: \${GGML_METAL}")
+          message(STATUS "=======================================")
           EOL
           
-          # 将Metal支持添加到CMakeLists.txt中
-          cat mac_metal.cmake >> CMakeLists.txt
+          # 备份原始CMakeLists.txt并使用新的文件
+          cp CMakeLists.txt CMakeLists.txt.original
+          cp macos_cmakelists.txt CMakeLists.txt
           
           # 显示最终的CMakeLists.txt
-          echo "修改后的CMakeLists.txt(末尾):"
-          tail -n 20 CMakeLists.txt
+          echo "MacOS专用CMakeLists.txt内容:"
+          cat CMakeLists.txt
       
       - name: CMake配置和构建
         run: |
@@ -149,7 +160,7 @@ jobs:
           export CPPFLAGS="-I$LLVM_PATH/include"
           
           echo "配置MacOS版本的AutoTalk (Metal版本)..."
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_CUDA=OFF -DGGML_CUDA=OFF -DGGML_METAL=ON || {
+          cmake .. -DCMAKE_BUILD_TYPE=Release || {
             echo "CMake配置失败:"
             cat CMakeFiles/CMakeError.log || echo "无法显示CMake错误日志"
             exit 1
@@ -162,6 +173,10 @@ jobs:
           }
           
           echo "AutoTalk Metal版本编译完成!"
+          
+          # 恢复原始CMakeLists.txt
+          cd ..
+          cp CMakeLists.txt.original CMakeLists.txt
       
       - name: 保存构建产物
         uses: actions/upload-artifact@v4
