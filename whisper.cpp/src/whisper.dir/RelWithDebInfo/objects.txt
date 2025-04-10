@@ -1,0 +1,1 @@
+G:/github/autotalk_c/whisper.cpp/src/whisper.dir/RelWithDebInfo/whisper.obj

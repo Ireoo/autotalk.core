@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="G:\github\autotalk_c\CMakeFiles\58a5036514b2c94300ce740d367ae949\INSTALL_force.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{93D1AB4A-366B-3D82-8A14-AF865EB96F18}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,47 @@
+build/
+Release/
+Debug/
+x64/
+bin/
+cmake/
+CMakeFiles/
+
+# 模型文件
+models/
+*.bin
+
+# 编译产物
+*.o
+*.obj
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.exp
+*.iobj
+*.ipdb
+
+# 项目文件
+*.suo
+*.user
+*.sln.docstates
+.vs/
+ipch/
+.vscode/ipch/
+
+# 日志文件
+*.tlog
+*.log
+*.log.*
+*.log.*.*
+*.log.*.*.*
+autotalk_debug.log
+autotalk_output.log
+
+# 临时文件
+temp/
+tmp/
+.DS_Store
+Thumbs.db
+
