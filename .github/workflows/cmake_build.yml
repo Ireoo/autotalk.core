@@ -90,9 +90,11 @@ jobs:
         with:
           submodules: recursive
       
-      - name: 安装音频库
+      - name: 安装音频库和Meta支持
         run: |
           brew install portaudio
+          brew install llvm libomp
+          echo "已安装Meta AI支持所需依赖"
       
       - name: 设置CMake
         uses: lukka/get-cmake@latest
@@ -104,12 +106,27 @@ jobs:
           sed -i.bak 's/add_definitions(-DUSE_CUDA)/#add_definitions(-DUSE_CUDA)/g' CMakeLists.txt
           sed -i.bak 's/option(GGML_CUDA "Enable CUDA for GPU acceleration" ON)/option(GGML_CUDA "Enable CUDA for GPU acceleration" OFF)/g' CMakeLists.txt
           sed -i.bak 's/target_compile_definitions(autotalk PRIVATE USE_CUDA)/#target_compile_definitions(autotalk PRIVATE USE_CUDA)/g' CMakeLists.txt
+          
+          # 启用Metal支持
+          echo "option(GGML_METAL \"Enable Metal for GPU acceleration on macOS\" ON)" >> CMakeLists.txt
+          echo "if(GGML_METAL)" >> CMakeLists.txt
+          echo "    target_compile_definitions(autotalk PRIVATE GGML_USE_METAL)" >> CMakeLists.txt
+          echo "    message(STATUS \"启用Metal加速\")" >> CMakeLists.txt
+          echo "endif()" >> CMakeLists.txt
       
       - name: CMake配置和构建
         run: |
           mkdir -p build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_CUDA=OFF -DGGML_CUDA=OFF
+          
+          # 设置LLVM环境变量
+          export LLVM_PATH=$(brew --prefix llvm)
+          export CC=$LLVM_PATH/bin/clang
+          export CXX=$LLVM_PATH/bin/clang++
+          export LDFLAGS="-L$LLVM_PATH/lib -Wl,-rpath,$LLVM_PATH/lib"
+          export CPPFLAGS="-I$LLVM_PATH/include"
+          
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_CUDA=OFF -DGGML_CUDA=OFF -DGGML_METAL=ON
           cmake --build . --config Release
       
       - name: 保存构建产物
@@ -185,23 +202,32 @@ jobs:
           
           此发布包含使用CMake为不同平台构建的AutoTalk语音识别程序：
           
-          - Windows: windows/autotalk.exe (GPU加速版本)
-          - Linux: linux/autotalk (GPU加速版本)
-          - MacOS: macos/autotalk (CPU版本，因为MacOS不支持CUDA)
+          - Windows: windows/autotalk.exe (CUDA GPU加速版本)
+          - Linux: linux/autotalk (CUDA GPU加速版本)
+          - MacOS: macos/autotalk (Metal GPU加速版本)
           
           ## 使用方法
           
           1. 根据您的平台选择相应的可执行文件
           2. 运行命令: \`./autotalk ../models/ggml-small.bin\`
           
-          注意: Windows和Linux版本需要CUDA运行时环境以实现GPU加速。
+          ## 系统要求
+          
+          - Windows/Linux: 需要安装CUDA运行时环境以实现GPU加速
+          - MacOS: 需要支持Metal的Apple GPU (Apple M系列芯片或较新的AMD GPU)
+          
+          ## GPU加速
+          
+          本版本针对不同平台提供了不同的GPU加速方案：
+          - Windows/Linux: CUDA加速
+          - MacOS: Metal加速
           
           ## CUDA测试程序
           
           CMake构建也会生成CUDA测试程序：
           - Windows: windows/simple_cuda_test.exe, windows/cuda_test.exe
           - Linux: linux/simple_cuda_test, linux/cuda_test
-          - MacOS: 不适用
+          - MacOS: 不适用（MacOS使用Metal而不是CUDA）
           EOL
       
       - name: 创建CMake发布压缩包

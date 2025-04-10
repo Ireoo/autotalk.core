@@ -99,9 +99,11 @@ jobs:
         with:
           submodules: recursive
       
-      - name: 安装音频库
+      - name: 安装音频库和Meta支持
         run: |
           brew install portaudio
+          brew install llvm libomp
+          echo "已安装Meta AI支持所需依赖"
       
       - name: 修改测试代码以适应MacOS
         run: |
@@ -117,7 +119,7 @@ jobs:
           }
           EOL
           
-          # 修改主程序CMake以适应MacOS
+          # 修改主程序CMake以适应MacOS (Meta版本)
           cat > macos_build.sh << EOL
           #!/bin/bash
           
@@ -131,10 +133,16 @@ jobs:
           mkdir -p build_autotalk_mac
           cd build_autotalk_mac
           
-          echo -e "${BLUE}[INFO]${NC} 配置MacOS版本的AutoTalk (CPU模式)..."
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=OFF -DUSE_CUDA=OFF
+          echo -e "${BLUE}[INFO]${NC} 配置MacOS版本的AutoTalk (Meta版本)..."
+          export LLVM_PATH=\$(brew --prefix llvm)
+          export CC=\$LLVM_PATH/bin/clang
+          export CXX=\$LLVM_PATH/bin/clang++
+          export LDFLAGS="-L\$LLVM_PATH/lib -Wl,-rpath,\$LLVM_PATH/lib"
+          export CPPFLAGS="-I\$LLVM_PATH/include"
           
-          echo -e "${BLUE}[INFO]${NC} 编译MacOS版本的AutoTalk..."
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=OFF -DUSE_CUDA=OFF -DGGML_METAL=ON
+          
+          echo -e "${BLUE}[INFO]${NC} 编译MacOS版本的AutoTalk (Meta版本)..."
           cmake --build . --config Release
           
           if [ $? -ne 0 ]; then
@@ -142,7 +150,7 @@ jobs:
               exit 1
           fi
           
-          echo -e "${GREEN}[SUCCESS]${NC} AutoTalk编译完成!"
+          echo -e "${GREEN}[SUCCESS]${NC} AutoTalk Meta版本编译完成!"
           EOL
           
           chmod +x macos_build.sh
@@ -153,7 +161,7 @@ jobs:
           clang++ -std=c++14 -o build_cuda_test_standalone/no_cuda_test src/no_cuda_test.cpp
           echo "MacOS测试程序编译完成"
           
-          # 编译AutoTalk的CPU版本
+          # 编译AutoTalk的Meta版本
           ./macos_build.sh
       
       - name: 保存测试可执行文件

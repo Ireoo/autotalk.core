@@ -117,7 +117,7 @@ jobs:
             - simple_cuda_test (简单CUDA测试程序)
           
           - MacOS: 见 macos/ 目录
-            - autotalk (CPU版本，因为MacOS不支持CUDA)
+            - autotalk (Metal版本，使用苹果GPU加速)
             - no_cuda_test (模拟CUDA测试)
           
           - 模型: 见 models/ 目录
@@ -131,14 +131,14 @@ jobs:
           ## 系统要求
           
           - Windows/Linux: 需要安装CUDA运行时环境以实现GPU加速
-          - MacOS: 不需要特殊依赖，但性能会受限于CPU
+          - MacOS: 需要支持Metal的Apple GPU (Apple M系列芯片或较新的AMD GPU)
           
           ## 更新日志
           
           - 支持多平台构建
           - 提供独立编译和CMake编译两种方式
-          - 为MacOS提供CPU兼容版本
-          - 包含CUDA测试程序用于验证GPU环境
+          - 为MacOS提供Metal GPU加速版本
+          - 包含CUDA/Metal测试程序用于验证GPU环境
           EOL
           
           # 创建最终发布ZIP
@@ -163,27 +163,29 @@ jobs:
             
             ## 支持平台
             
-            - Windows (GPU加速)
-            - Linux (GPU加速)
-            - MacOS (CPU版本)
+            - Windows (CUDA GPU加速)
+            - Linux (CUDA GPU加速)
+            - MacOS (Metal GPU加速)
             
             ## 主要特性
             
             - 实时语音识别，支持中文
-            - GPU加速处理（Windows/Linux）
+            - 多平台GPU加速：
+              - Windows/Linux: CUDA加速
+              - MacOS: Metal加速
             - 包含Whisper小型模型
             - 轻量级跨平台设计
             
             ## 系统要求
             
             - Windows/Linux: 需要安装CUDA运行时环境以实现GPU加速
-            - MacOS: 不需要特殊依赖，但性能会受限于CPU
+            - MacOS: 需要支持Metal的Apple GPU (Apple M系列芯片或较新的AMD GPU)
             
             ## 安装说明
             
             1. 下载对应平台的发布包
             2. 解压后，运行主程序 `autotalk` 并提供模型路径作为参数
             
-            完整构建也提供了CUDA测试程序，用于验证您的GPU环境是否正确配置。
+            完整构建也提供了GPU测试程序，用于验证您的环境是否正确配置。
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
