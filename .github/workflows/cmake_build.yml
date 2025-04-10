@@ -18,11 +18,7 @@ jobs:
       - name: 安装CUDA
         uses: Jimver/cuda-toolkit@v0.2.12
         id: cuda-toolkit
-        with:
-          cuda: '12.8.1'
-          method: 'network'
-          sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust", "visual_studio_integration"]'
-      
+
       - name: 检查音频库
         run: |
           echo "为Windows配置音频库"
@@ -56,11 +52,7 @@ jobs:
       - name: 安装CUDA
         uses: Jimver/cuda-toolkit@v0.2.12
         id: cuda-toolkit
-        with:
-          cuda: '12.8.1'
-          method: 'network'
-          sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust"]'
-      
+   
       - name: 安装音频库
         run: |
           sudo apt-get update
