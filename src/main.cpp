@@ -62,6 +62,9 @@ void processAudioThread(struct whisper_context* ctx) {
     wparams.n_threads = std::thread::hardware_concurrency();
     wparams.audio_ctx = AUDIO_CONTEXT_SIZE;
     
+    // 设置GPU加速
+    wparams.use_gpu = true;
+    
     std::vector<float> audio_data;
     std::string last_text;
     
@@ -128,8 +131,19 @@ int main(int argc, char** argv) {
     // 使用新的API，避免过时警告
     whisper_context_params cparams = whisper_context_default_params();
     
-    // whisper_context_default_params 默认已启用 use_gpu = true
-    // 尝试使用GPU，若无GPU可用将回退到CPU
+    // 强制启用GPU，并设置合适的参数
+    cparams.use_gpu = true;
+    
+    // 检查系统中是否有可用的CUDA设备
+    int deviceCount = 0;
+    if (cudaGetDeviceCount(&deviceCount) != cudaSuccess || deviceCount == 0) {
+        std::cerr << "警告: 未检测到CUDA设备，将回退到CPU模式" << std::endl;
+        cparams.use_gpu = false;
+    } else {
+        std::cout << "检测到 " << deviceCount << " 个CUDA设备，使用GPU加速" << std::endl;
+    }
+    
+    // 优先尝试使用GPU加载模型
     struct whisper_context* ctx = whisper_init_from_file_with_params(model_path.c_str(), cparams);
     
     if (ctx == nullptr) {

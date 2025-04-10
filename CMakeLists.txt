@@ -29,7 +29,7 @@ include_directories(${CUDA_INCLUDE_DIRS})
 # 检查CUDA版本
 check_cuda_version()
 
-# 直接设置CUDA架构
+# 设置CUDA架构
 set(CMAKE_CUDA_ARCHITECTURES 75)
 message(STATUS "设置CUDA架构: ${CMAKE_CUDA_ARCHITECTURES}")
 
@@ -45,6 +45,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # 添加whisper.cpp库路径
+add_subdirectory(whisper.cpp)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/whisper.cpp)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/whisper.cpp/include)
 
@@ -54,6 +55,7 @@ add_definitions(-DUSE_CUDA)
 # 添加源文件
 add_executable(simple_cuda_test src/simple_cuda_test.cu)
 add_executable(cuda_test src/cuda_test.cpp)
+add_executable(autotalk src/main.cpp src/audio_recorder.cpp)
 
 # 设置编译属性
 set_target_properties(simple_cuda_test PROPERTIES
@@ -63,6 +65,20 @@ set_target_properties(simple_cuda_test PROPERTIES
 
 # 链接CUDA库
 target_link_libraries(cuda_test PRIVATE ${CUDA_LIBRARIES})
+
+# 链接autotalk所需的库
+target_link_libraries(autotalk PRIVATE 
+    whisper 
+    ${CUDA_LIBRARIES}
+)
+
+if(WIN32)
+    target_link_libraries(autotalk PRIVATE winmm)
+endif()
+
+# 添加CUDA编译选项
+option(GGML_CUDA "Enable CUDA for GPU acceleration" ON)
+target_compile_definitions(autotalk PRIVATE USE_CUDA)
 
 # 输出项目信息
 message(STATUS "========== CUDA测试项目配置 ==========")
