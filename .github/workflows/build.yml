@@ -42,7 +42,7 @@ jobs:
         shell: bash
       
       - name: 保存可执行文件
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: autotalk-windows
           path: |
@@ -85,7 +85,7 @@ jobs:
           ./build_autotalk_gpu.sh
       
       - name: 保存可执行文件
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: autotalk-linux
           path: |
@@ -165,7 +165,7 @@ jobs:
           ./macos_build.sh
       
       - name: 保存测试可执行文件
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: autotalk-macos
           path: |
@@ -203,7 +203,7 @@ jobs:
           ./download_models.sh
       
       - name: 保存模型文件
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: whisper-models
           path: models/
@@ -263,7 +263,7 @@ jobs:
           zip -r ../autotalk-all-platforms.zip *
       
       - name: 上传发布包
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: autotalk-all-platforms
           path: autotalk-all-platforms.zip 
