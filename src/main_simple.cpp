@@ -121,7 +121,18 @@ void processAudioThread(struct whisper_context* ctx) {
     wparams.n_threads = std::thread::hardware_concurrency();
     wparams.audio_ctx = AUDIO_CONTEXT_SIZE;
     
-    logMessage("设置Whisper参数: 线程数=" + std::to_string(wparams.n_threads) + ", 语言=" + std::string(wparams.language));
+    // 启用GPU加速
+#ifdef USE_CUDA
+    wparams.use_gpu = true;
+    logMessage("启用GPU加速");
+#else
+    wparams.use_gpu = false;
+    logMessage("使用CPU计算");
+#endif
+    
+    logMessage("设置Whisper参数: 线程数=" + std::to_string(wparams.n_threads) + 
+               ", 语言=" + std::string(wparams.language) + 
+               ", 使用GPU=" + (wparams.use_gpu ? "是" : "否"));
     
     std::vector<float> audio_data;
     std::string last_text;
@@ -216,7 +227,19 @@ int main(int argc, char** argv) {
     // Use new API to avoid deprecation warning
     whisper_context_params cparams = whisper_context_default_params();
     
-    std::cout << "使用参数: n_threads=" << std::thread::hardware_concurrency() << std::endl;
+    // 设置GPU参数
+#ifdef USE_CUDA
+    cparams.use_gpu = true;
+    std::cout << "启用GPU加速" << std::endl;
+    logMessage("启用GPU加速");
+#else
+    cparams.use_gpu = false;
+    std::cout << "使用CPU计算" << std::endl;
+    logMessage("使用CPU计算");
+#endif
+    
+    std::cout << "使用参数: n_threads=" << std::thread::hardware_concurrency() 
+              << ", 使用GPU=" << (cparams.use_gpu ? "是" : "否") << std::endl;
     
     try {
         std::cout << "正在初始化模型..." << std::endl;

@@ -1,0 +1,585 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{EFFC9E15-B1C3-33F9-AD09-27F46583F76E}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>ggml-cuda</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.6.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">G:\github\autotalk_c\bin\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ggml-cuda.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ggml-cuda</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">G:\github\autotalk_c\bin\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ggml-cuda.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ggml-cuda</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">G:\github\autotalk_c\bin\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">ggml-cuda.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">ggml-cuda</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">G:\github\autotalk_c\bin\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">ggml-cuda.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">ggml-cuda</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ExceptionHandling>
+      </ExceptionHandling>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);CMAKE_INTDIR="Debug";ggml_cuda_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;CMAKE_INTDIR=\"Debug\";ggml_cuda_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\..;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <CudaCompile>
+      <Include>G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\..;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\include;%(Include)</Include>
+      <Defines>%(Defines);_WINDOWS;USE_CUDA;GGML_BACKEND_BUILD;GGML_BACKEND_SHARED;GGML_SCHED_MAX_COPIES=4;_XOPEN_SOURCE=600;_CRT_SECURE_NO_WARNINGS;GGML_CUDA_PEER_MAX_BATCH_SIZE=128;GGML_SHARED;CMAKE_INTDIR="Debug";ggml_cuda_EXPORTS</Defines>
+      <AdditionalOptions>%(AdditionalOptions) -std=c++17 --generate-code=arch=compute_75,code=[compute_75,sm_75] /wd4267 /wd4244 /wd4996 /wd4819 /utf-8 -Xcompiler="/EHsc -Zi -Ob0"</AdditionalOptions>
+      <CodeGeneration></CodeGeneration>
+      <CompileOut>$(IntDir)%(Filename).obj</CompileOut>
+      <CudaRuntime>Static</CudaRuntime>
+      <FastMath>true</FastMath>
+      <GPUDebugInfo>false</GPUDebugInfo>
+      <Optimization>Od</Optimization>
+      <Runtime>MDd</Runtime>
+      <RuntimeChecks>RTC1</RuntimeChecks>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
+      <TypeInfo>true</TypeInfo>
+      <UseHostInclude>false</UseHostInclude>
+      <Warning>W3</Warning>
+    </CudaCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\..;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\Debug\ggml-base.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cudart.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cublas.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cublasLt.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cuda.lib;cudadevrt.lib;cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>G:/github/autotalk_c/whisper.cpp/ggml/src/ggml-cuda/Debug/ggml-cuda.lib</ImportLibrary>
+      <ProgramDataBaseFile>G:/github/autotalk_c/bin/Debug/ggml-cuda.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <CudaLink>
+      <AdditionalOptions>-forward-unknown-to-host-compiler -Wno-deprecated-gpu-targets </AdditionalOptions>
+      <PerformDeviceLink>false</PerformDeviceLink>
+    </CudaLink>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ExceptionHandling>
+      </ExceptionHandling>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);CMAKE_INTDIR="Release";ggml_cuda_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;CMAKE_INTDIR=\"Release\";ggml_cuda_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\..;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <CudaCompile>
+      <Include>G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\..;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\include;%(Include)</Include>
+      <Defines>%(Defines);_WINDOWS;USE_CUDA;NDEBUG;GGML_BACKEND_BUILD;GGML_BACKEND_SHARED;GGML_SCHED_MAX_COPIES=4;_XOPEN_SOURCE=600;_CRT_SECURE_NO_WARNINGS;GGML_CUDA_PEER_MAX_BATCH_SIZE=128;GGML_SHARED;CMAKE_INTDIR="Release";ggml_cuda_EXPORTS</Defines>
+      <AdditionalOptions>%(AdditionalOptions) -std=c++17 --generate-code=arch=compute_75,code=[compute_75,sm_75] /wd4267 /wd4244 /wd4996 /wd4819 /utf-8 -Xcompiler="/EHsc -Ob2"</AdditionalOptions>
+      <CodeGeneration></CodeGeneration>
+      <CompileOut>$(IntDir)%(Filename).obj</CompileOut>
+      <CudaRuntime>Static</CudaRuntime>
+      <FastMath>true</FastMath>
+      <GPUDebugInfo>false</GPUDebugInfo>
+      <Optimization>O2</Optimization>
+      <Runtime>MD</Runtime>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
+      <TypeInfo>true</TypeInfo>
+      <UseHostInclude>false</UseHostInclude>
+      <Warning>W3</Warning>
+    </CudaCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\..;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\Release\ggml-base.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cudart.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cublas.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cublasLt.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cuda.lib;cudadevrt.lib;cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>G:/github/autotalk_c/whisper.cpp/ggml/src/ggml-cuda/Release/ggml-cuda.lib</ImportLibrary>
+      <ProgramDataBaseFile>G:/github/autotalk_c/bin/Release/ggml-cuda.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <CudaLink>
+      <AdditionalOptions>-forward-unknown-to-host-compiler -Wno-deprecated-gpu-targets </AdditionalOptions>
+      <PerformDeviceLink>false</PerformDeviceLink>
+    </CudaLink>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ExceptionHandling>
+      </ExceptionHandling>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);CMAKE_INTDIR="MinSizeRel";ggml_cuda_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;CMAKE_INTDIR=\"MinSizeRel\";ggml_cuda_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\..;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <CudaCompile>
+      <Include>G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\..;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\include;%(Include)</Include>
+      <Defines>%(Defines);_WINDOWS;USE_CUDA;NDEBUG;GGML_BACKEND_BUILD;GGML_BACKEND_SHARED;GGML_SCHED_MAX_COPIES=4;_XOPEN_SOURCE=600;_CRT_SECURE_NO_WARNINGS;GGML_CUDA_PEER_MAX_BATCH_SIZE=128;GGML_SHARED;CMAKE_INTDIR="MinSizeRel";ggml_cuda_EXPORTS</Defines>
+      <AdditionalOptions>%(AdditionalOptions) -std=c++17 --generate-code=arch=compute_75,code=[compute_75,sm_75] /wd4267 /wd4244 /wd4996 /wd4819 /utf-8 -Xcompiler="/EHsc -Ob1"</AdditionalOptions>
+      <CodeGeneration></CodeGeneration>
+      <CompileOut>$(IntDir)%(Filename).obj</CompileOut>
+      <CudaRuntime>Static</CudaRuntime>
+      <FastMath>true</FastMath>
+      <GPUDebugInfo>false</GPUDebugInfo>
+      <Optimization>O1</Optimization>
+      <Runtime>MD</Runtime>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
+      <TypeInfo>true</TypeInfo>
+      <UseHostInclude>false</UseHostInclude>
+      <Warning>W3</Warning>
+    </CudaCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\..;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\MinSizeRel\ggml-base.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cudart.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cublas.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cublasLt.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cuda.lib;cudadevrt.lib;cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>G:/github/autotalk_c/whisper.cpp/ggml/src/ggml-cuda/MinSizeRel/ggml-cuda.lib</ImportLibrary>
+      <ProgramDataBaseFile>G:/github/autotalk_c/bin/MinSizeRel/ggml-cuda.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <CudaLink>
+      <AdditionalOptions>-forward-unknown-to-host-compiler -Wno-deprecated-gpu-targets </AdditionalOptions>
+      <PerformDeviceLink>false</PerformDeviceLink>
+    </CudaLink>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ExceptionHandling>
+      </ExceptionHandling>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);CMAKE_INTDIR="RelWithDebInfo";ggml_cuda_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;CMAKE_INTDIR=\"RelWithDebInfo\";ggml_cuda_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\..;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <CudaCompile>
+      <Include>G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\..;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\include;%(Include)</Include>
+      <Defines>%(Defines);_WINDOWS;USE_CUDA;NDEBUG;GGML_BACKEND_BUILD;GGML_BACKEND_SHARED;GGML_SCHED_MAX_COPIES=4;_XOPEN_SOURCE=600;_CRT_SECURE_NO_WARNINGS;GGML_CUDA_PEER_MAX_BATCH_SIZE=128;GGML_SHARED;CMAKE_INTDIR="RelWithDebInfo";ggml_cuda_EXPORTS</Defines>
+      <AdditionalOptions>%(AdditionalOptions) -std=c++17 --generate-code=arch=compute_75,code=[compute_75,sm_75] /wd4267 /wd4244 /wd4996 /wd4819 /utf-8 -Xcompiler="/EHsc -Zi -Ob1"</AdditionalOptions>
+      <CodeGeneration></CodeGeneration>
+      <CompileOut>$(IntDir)%(Filename).obj</CompileOut>
+      <CudaRuntime>Static</CudaRuntime>
+      <FastMath>true</FastMath>
+      <GPUDebugInfo>false</GPUDebugInfo>
+      <Optimization>O2</Optimization>
+      <Runtime>MD</Runtime>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
+      <TypeInfo>true</TypeInfo>
+      <UseHostInclude>false</UseHostInclude>
+      <Warning>W3</Warning>
+    </CudaCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\..;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\RelWithDebInfo\ggml-base.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cudart.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cublas.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cublasLt.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cuda.lib;cudadevrt.lib;cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>G:/github/autotalk_c/whisper.cpp/ggml/src/ggml-cuda/RelWithDebInfo/ggml-cuda.lib</ImportLibrary>
+      <ProgramDataBaseFile>G:/github/autotalk_c/bin/RelWithDebInfo/ggml-cuda.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <CudaLink>
+      <AdditionalOptions>-forward-unknown-to-host-compiler -Wno-deprecated-gpu-targets </AdditionalOptions>
+      <PerformDeviceLink>false</PerformDeviceLink>
+    </CudaLink>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule G:/github/autotalk_c/whisper.cpp/ggml/src/ggml-cuda/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SG:/github/autotalk_c -BG:/github/autotalk_c --check-stamp-file G:/github/autotalk_c/whisper.cpp/ggml/src/ggml-cuda/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Program Files\CMake\share\cmake-3.29\Modules\FindCUDAToolkit.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\FindPackageMessage.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule G:/github/autotalk_c/whisper.cpp/ggml/src/ggml-cuda/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SG:/github/autotalk_c -BG:/github/autotalk_c --check-stamp-file G:/github/autotalk_c/whisper.cpp/ggml/src/ggml-cuda/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Program Files\CMake\share\cmake-3.29\Modules\FindCUDAToolkit.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\FindPackageMessage.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule G:/github/autotalk_c/whisper.cpp/ggml/src/ggml-cuda/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SG:/github/autotalk_c -BG:/github/autotalk_c --check-stamp-file G:/github/autotalk_c/whisper.cpp/ggml/src/ggml-cuda/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Program Files\CMake\share\cmake-3.29\Modules\FindCUDAToolkit.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\FindPackageMessage.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule G:/github/autotalk_c/whisper.cpp/ggml/src/ggml-cuda/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SG:/github/autotalk_c -BG:/github/autotalk_c --check-stamp-file G:/github/autotalk_c/whisper.cpp/ggml/src/ggml-cuda/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Program Files\CMake\share\cmake-3.29\Modules\FindCUDAToolkit.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\FindPackageMessage.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\acc.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\arange.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\argmax.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\argsort.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\binbcast.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\clamp.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\common.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\concat.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\conv-transpose-1d.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\convert.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\count-equal.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\cp-async.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\cpy.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\cross-entropy-loss.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\dequantize.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\diagmask.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn-common.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn-mma-f16.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn-tile-f16.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn-tile-f32.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn-vec-f16.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn-vec-f32.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn-wmma-f16.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\getrows.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\gla.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\im2col.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\mma.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\mmq.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\mmv.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\mmvq.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\norm.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\opt-step-adamw.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\out-prod.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\pad.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\pool2d.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\quantize.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\rope.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\scale.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\softmax.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\ssm-conv.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\ssm-scan.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\sum.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\sumrows.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\tsembd.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\unary.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\upscale.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\vecdotq.cuh">
+    </None>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\wkv.cuh">
+    </None>
+    <ClInclude Include="G:\github\autotalk_c\whisper.cpp\ggml\include\ggml-cuda.h" />
+    <CudaCompile Include="acc.cu" />
+    <CudaCompile Include="arange.cu" />
+    <CudaCompile Include="argmax.cu" />
+    <CudaCompile Include="argsort.cu" />
+    <CudaCompile Include="binbcast.cu" />
+    <CudaCompile Include="clamp.cu" />
+    <CudaCompile Include="concat.cu" />
+    <CudaCompile Include="conv-transpose-1d.cu" />
+    <CudaCompile Include="convert.cu" />
+    <CudaCompile Include="count-equal.cu" />
+    <CudaCompile Include="cpy.cu" />
+    <CudaCompile Include="cross-entropy-loss.cu" />
+    <CudaCompile Include="diagmask.cu" />
+    <CudaCompile Include="fattn-tile-f16.cu" />
+    <CudaCompile Include="fattn-tile-f32.cu" />
+    <CudaCompile Include="fattn-wmma-f16.cu" />
+    <CudaCompile Include="fattn.cu" />
+    <CudaCompile Include="getrows.cu" />
+    <CudaCompile Include="ggml-cuda.cu" />
+    <CudaCompile Include="gla.cu" />
+    <CudaCompile Include="im2col.cu" />
+    <CudaCompile Include="mmq.cu" />
+    <CudaCompile Include="mmv.cu" />
+    <CudaCompile Include="mmvq.cu" />
+    <CudaCompile Include="norm.cu" />
+    <CudaCompile Include="opt-step-adamw.cu" />
+    <CudaCompile Include="out-prod.cu" />
+    <CudaCompile Include="pad.cu" />
+    <CudaCompile Include="pool2d.cu" />
+    <CudaCompile Include="quantize.cu" />
+    <CudaCompile Include="rope.cu" />
+    <CudaCompile Include="scale.cu" />
+    <CudaCompile Include="softmax.cu" />
+    <CudaCompile Include="ssm-conv.cu" />
+    <CudaCompile Include="ssm-scan.cu" />
+    <CudaCompile Include="sum.cu" />
+    <CudaCompile Include="sumrows.cu" />
+    <CudaCompile Include="tsembd.cu" />
+    <CudaCompile Include="unary.cu" />
+    <CudaCompile Include="upscale.cu" />
+    <CudaCompile Include="wkv.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_1-ncols2_8.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_16-ncols2_1.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_16-ncols2_2.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_16-ncols2_4.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_2-ncols2_4.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_2-ncols2_8.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_32-ncols2_1.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_32-ncols2_2.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_4-ncols2_2.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_4-ncols2_4.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_4-ncols2_8.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_64-ncols2_1.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_8-ncols2_1.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_8-ncols2_2.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_8-ncols2_4.cu" />
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_8-ncols2_8.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-iq1_s.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-iq2_s.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-iq2_xs.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-iq2_xxs.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-iq3_s.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-iq3_xxs.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-iq4_nl.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-iq4_xs.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-q2_k.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-q3_k.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-q4_0.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-q4_1.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-q4_k.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-q5_0.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-q5_1.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-q5_k.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-q6_k.cu" />
+    <CudaCompile Include="template-instances\mmq-instance-q8_0.cu" />
+    <CudaCompile Include="template-instances\fattn-vec-f16-instance-hs128-q4_0-q4_0.cu" />
+    <CudaCompile Include="template-instances\fattn-vec-f32-instance-hs128-q4_0-q4_0.cu" />
+    <CudaCompile Include="template-instances\fattn-vec-f16-instance-hs128-q8_0-q8_0.cu" />
+    <CudaCompile Include="template-instances\fattn-vec-f32-instance-hs128-q8_0-q8_0.cu" />
+    <CudaCompile Include="template-instances\fattn-vec-f16-instance-hs128-f16-f16.cu" />
+    <CudaCompile Include="template-instances\fattn-vec-f16-instance-hs256-f16-f16.cu" />
+    <CudaCompile Include="template-instances\fattn-vec-f16-instance-hs64-f16-f16.cu" />
+    <CudaCompile Include="template-instances\fattn-vec-f32-instance-hs128-f16-f16.cu" />
+    <CudaCompile Include="template-instances\fattn-vec-f32-instance-hs256-f16-f16.cu" />
+    <CudaCompile Include="template-instances\fattn-vec-f32-instance-hs64-f16-f16.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="G:\github\autotalk_c\ZERO_CHECK.vcxproj">
+      <Project>{69178F26-0511-38A1-A3B5-EE40C4EC1E70}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-base.vcxproj">
+      <Project>{61EFE453-E5D1-34D3-8814-D5A14CD065E2}</Project>
+      <Name>ggml-base</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.6.targets" />
+  </ImportGroup>
+</Project>

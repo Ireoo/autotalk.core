@@ -52,6 +52,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.6.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -102,12 +103,12 @@
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <UseFullPaths>false</UseFullPaths>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR="Debug";whisper_EXPORTS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_USE_CUDA;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR="Debug";whisper_EXPORTS</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR=\"Debug\";whisper_EXPORTS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_USE_CUDA;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR=\"Debug\";whisper_EXPORTS</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>G:\github\autotalk_c\whisper.cpp\src\.;G:\github\autotalk_c\whisper.cpp\src\..\include;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
@@ -136,7 +137,7 @@ exit /b %1
 if %errorlevel% neq 0 goto :VCEnd</Command>
     </PreLinkEvent>
     <Link>
-      <AdditionalDependencies>..\ggml\src\Debug\ggml.lib;..\ggml\src\Debug\ggml-cpu.lib;..\ggml\src\Debug\ggml-base.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>..\ggml\src\Debug\ggml.lib;..\ggml\src\Debug\ggml-cpu.lib;..\ggml\src\ggml-cuda\Debug\ggml-cuda.lib;..\ggml\src\Debug\ggml-base.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -149,6 +150,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
+    <CudaLink>
+      <AdditionalOptions>-forward-unknown-to-host-compiler -Wno-deprecated-gpu-targets </AdditionalOptions>
+      <PerformDeviceLink>false</PerformDeviceLink>
+    </CudaLink>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -165,14 +170,14 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <UseFullPaths>false</UseFullPaths>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR="Release";whisper_EXPORTS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_USE_CUDA;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR="Release";whisper_EXPORTS</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <DebugInformationFormat>
       </DebugInformationFormat>
       <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR=\"Release\";whisper_EXPORTS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_USE_CUDA;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR=\"Release\";whisper_EXPORTS</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>G:\github\autotalk_c\whisper.cpp\src\.;G:\github\autotalk_c\whisper.cpp\src\..\include;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
@@ -201,7 +206,7 @@ exit /b %1
 if %errorlevel% neq 0 goto :VCEnd</Command>
     </PreLinkEvent>
     <Link>
-      <AdditionalDependencies>..\ggml\src\Release\ggml.lib;..\ggml\src\Release\ggml-cpu.lib;..\ggml\src\Release\ggml-base.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>..\ggml\src\Release\ggml.lib;..\ggml\src\Release\ggml-cpu.lib;..\ggml\src\ggml-cuda\Release\ggml-cuda.lib;..\ggml\src\Release\ggml-base.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <GenerateDebugInformation>false</GenerateDebugInformation>
@@ -214,6 +219,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
+    <CudaLink>
+      <AdditionalOptions>-forward-unknown-to-host-compiler -Wno-deprecated-gpu-targets </AdditionalOptions>
+      <PerformDeviceLink>false</PerformDeviceLink>
+    </CudaLink>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
     <ClCompile>
@@ -230,14 +239,14 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <UseFullPaths>false</UseFullPaths>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR="MinSizeRel";whisper_EXPORTS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_USE_CUDA;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR="MinSizeRel";whisper_EXPORTS</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <DebugInformationFormat>
       </DebugInformationFormat>
       <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR=\"MinSizeRel\";whisper_EXPORTS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_USE_CUDA;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR=\"MinSizeRel\";whisper_EXPORTS</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>G:\github\autotalk_c\whisper.cpp\src\.;G:\github\autotalk_c\whisper.cpp\src\..\include;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
@@ -266,7 +275,7 @@ exit /b %1
 if %errorlevel% neq 0 goto :VCEnd</Command>
     </PreLinkEvent>
     <Link>
-      <AdditionalDependencies>..\ggml\src\MinSizeRel\ggml.lib;..\ggml\src\MinSizeRel\ggml-cpu.lib;..\ggml\src\MinSizeRel\ggml-base.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>..\ggml\src\MinSizeRel\ggml.lib;..\ggml\src\MinSizeRel\ggml-cpu.lib;..\ggml\src\ggml-cuda\MinSizeRel\ggml-cuda.lib;..\ggml\src\MinSizeRel\ggml-base.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <GenerateDebugInformation>false</GenerateDebugInformation>
@@ -279,6 +288,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
+    <CudaLink>
+      <AdditionalOptions>-forward-unknown-to-host-compiler -Wno-deprecated-gpu-targets </AdditionalOptions>
+      <PerformDeviceLink>false</PerformDeviceLink>
+    </CudaLink>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
     <ClCompile>
@@ -296,12 +309,12 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <UseFullPaths>false</UseFullPaths>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR="RelWithDebInfo";whisper_EXPORTS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_USE_CUDA;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR="RelWithDebInfo";whisper_EXPORTS</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR=\"RelWithDebInfo\";whisper_EXPORTS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WHISPER_SHARED;WHISPER_BUILD;_CRT_SECURE_NO_WARNINGS;GGML_USE_CPU;GGML_USE_CUDA;GGML_SHARED;GGML_BACKEND_SHARED;CMAKE_INTDIR=\"RelWithDebInfo\";whisper_EXPORTS</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>G:\github\autotalk_c\whisper.cpp\src\.;G:\github\autotalk_c\whisper.cpp\src\..\include;G:\github\autotalk_c\whisper.cpp\ggml\src\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
@@ -330,7 +343,7 @@ exit /b %1
 if %errorlevel% neq 0 goto :VCEnd</Command>
     </PreLinkEvent>
     <Link>
-      <AdditionalDependencies>..\ggml\src\RelWithDebInfo\ggml.lib;..\ggml\src\RelWithDebInfo\ggml-cpu.lib;..\ggml\src\RelWithDebInfo\ggml-base.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>..\ggml\src\RelWithDebInfo\ggml.lib;..\ggml\src\RelWithDebInfo\ggml-cpu.lib;..\ggml\src\ggml-cuda\RelWithDebInfo\ggml-cuda.lib;..\ggml\src\RelWithDebInfo\ggml-base.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -343,6 +356,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
+    <CudaLink>
+      <AdditionalOptions>-forward-unknown-to-host-compiler -Wno-deprecated-gpu-targets </AdditionalOptions>
+      <PerformDeviceLink>false</PerformDeviceLink>
+    </CudaLink>
   </ItemDefinitionGroup>
   <ItemGroup>
     <CustomBuild Include="G:\github\autotalk_c\whisper.cpp\src\CMakeLists.txt">
@@ -425,8 +442,13 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <Project>{AA7B52AE-5B02-37F1-A4AC-03E9784F592D}</Project>
       <Name>ggml-cpu</Name>
     </ProjectReference>
+    <ProjectReference Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\ggml-cuda.vcxproj">
+      <Project>{EFFC9E15-B1C3-33F9-AD09-27F46583F76E}</Project>
+      <Name>ggml-cuda</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.6.targets" />
   </ImportGroup>
 </Project>

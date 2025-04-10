@@ -55,6 +55,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.6.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -185,6 +186,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <Project>{AA7B52AE-5B02-37F1-A4AC-03E9784F592D}</Project>
       <Name>ggml-cpu</Name>
     </ProjectReference>
+    <ProjectReference Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\ggml-cuda.vcxproj">
+      <Project>{EFFC9E15-B1C3-33F9-AD09-27F46583F76E}</Project>
+      <Name>ggml-cuda</Name>
+    </ProjectReference>
     <ProjectReference Include="G:\github\autotalk_c\whisper.cpp\src\whisper.vcxproj">
       <Project>{F6FA608B-49AD-3E71-AD84-2B272019C664}</Project>
       <Name>whisper</Name>
@@ -192,5 +197,6 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.6.targets" />
   </ImportGroup>
 </Project>

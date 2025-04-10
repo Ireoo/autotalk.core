@@ -1,75 +1,39 @@
 #!/bin/bash
 
-# 设置默认选项
-USE_CUDA=ON
-AUTO_DETECT_GPU=ON
-
-# 处理命令行参数
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    --no-cuda)
-      USE_CUDA=OFF
-      shift
-      ;;
-    --cuda-version=*)
-      CUDA_VERSION="${1#*=}"
-      shift
-      ;;
-    --no-auto-detect)
-      AUTO_DETECT_GPU=OFF
-      shift
-      ;;
-    --help|-h)
-      echo "构建选项:"
-      echo "  --no-cuda           禁用CUDA支持"
-      echo "  --cuda-version=X.Y  指定CUDA版本 (例如: 11.0, 10.0)"
-      echo "  --no-auto-detect    禁用自动检测GPU架构"
-      echo "  --help, -h          显示此帮助信息"
-      exit 0
-      ;;
-    *)
-      echo "未知选项: $1"
-      echo "使用 --help 查看可用选项"
-      exit 1
-      ;;
-  esac
-done
-
 # 创建构建目录
 mkdir -p build
 cd build
 
-# 检查是否安装了CMake
-if ! command -v cmake &> /dev/null; then
-    echo "错误: 未找到CMake。请先安装CMake。"
+# 定义颜色
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # 恢复颜色
+
+# 显示CUDA信息
+echo -e "${GREEN}正在检查CUDA环境...${NC}"
+if command -v nvcc &> /dev/null; then
+    nvcc --version
+    echo -e "${GREEN}CUDA可用√${NC}"
+else
+    echo -e "${RED}未找到CUDA编译器！请确保CUDA已安装并且nvcc在PATH中。${NC}"
     exit 1
 fi
 
-# 构建CMake选项
-CMAKE_OPTIONS="-DUSE_CUDA=$USE_CUDA -DAUTO_DETECT_GPU=$AUTO_DETECT_GPU"
-
-# 如果指定了CUDA版本
-if [ ! -z "$CUDA_VERSION" ]; then
-    echo "使用CUDA版本: $CUDA_VERSION"
-    # 在Windows上可能需要设置CUDA路径
-    if [ "$(uname)" == "MINGW"* ] || [ "$(uname)" == "MSYS"* ] || [ "$(uname)" == "CYGWIN"* ] || [ -d "/c/" ]; then
-        CMAKE_OPTIONS="$CMAKE_OPTIONS -DCUDAToolkit_ROOT=\"C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v$CUDA_VERSION\""
-    fi
-fi
-
-# 运行CMake配置
-echo "配置项目..."
-cmake -S .. -B . $CMAKE_OPTIONS || { echo "CMake配置失败"; exit 1; }
+# 配置CMake选项
+echo -e "${YELLOW}正在配置构建...${NC}"
+cmake -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_COMPILER="C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/bin/nvcc.exe" ..
 
 # 编译项目
-echo "构建项目..."
-cmake --build . --config Release || { echo "构建失败"; exit 1; }
+echo -e "${YELLOW}正在编译...${NC}"
+cmake --build . --config Release
 
-echo "构建完成！"
-echo "您可以使用以下命令运行程序:"
-echo "./autotalk /path/to/model.bin"
-echo ""
-echo "程序会优先使用GPU运行模型，如果没有可用的GPU，将自动回退到CPU。"
-echo ""
-echo "如果您还没有下载模型，可以使用download_model.sh脚本下载:"
-echo "../download_model.sh small" 
+# 检查编译是否成功
+if [ -f "bin/Release/simple_cuda_test.exe" ]; then
+    echo -e "${GREEN}编译成功！${NC}"
+    echo -e "${YELLOW}正在运行CUDA测试程序...${NC}"
+    ./bin/Release/simple_cuda_test.exe
+else
+    echo -e "${RED}编译失败，请检查错误信息。${NC}"
+    exit 1
+fi 

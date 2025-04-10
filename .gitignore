@@ -45,3 +45,4 @@ tmp/
 .DS_Store
 Thumbs.db
 
+build_cuda_test/

@@ -1,0 +1,327 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="G:\github\autotalk_c\whisper.cpp\ggml\include\ggml-cuda.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="acc.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="arange.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="argmax.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="argsort.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="binbcast.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="clamp.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="concat.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="conv-transpose-1d.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="convert.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="count-equal.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="cpy.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="cross-entropy-loss.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="diagmask.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="fattn-tile-f16.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="fattn-tile-f32.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="fattn-wmma-f16.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="fattn.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="getrows.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="ggml-cuda.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="gla.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="im2col.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="mmq.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="mmv.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="mmvq.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="norm.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="opt-step-adamw.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="out-prod.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="pad.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="pool2d.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="quantize.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="rope.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="scale.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="softmax.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="ssm-conv.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="ssm-scan.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="sum.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="sumrows.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="tsembd.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="unary.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="upscale.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="wkv.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_1-ncols2_8.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_16-ncols2_1.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_16-ncols2_2.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_16-ncols2_4.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_2-ncols2_4.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_2-ncols2_8.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_32-ncols2_1.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_32-ncols2_2.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_4-ncols2_2.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_4-ncols2_4.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_4-ncols2_8.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_64-ncols2_1.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_8-ncols2_1.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_8-ncols2_2.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_8-ncols2_4.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-mma-f16-instance-ncols1_8-ncols2_8.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-iq1_s.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-iq2_s.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-iq2_xs.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-iq2_xxs.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-iq3_s.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-iq3_xxs.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-iq4_nl.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-iq4_xs.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-q2_k.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-q3_k.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-q4_0.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-q4_1.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-q4_k.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-q5_0.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-q5_1.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-q5_k.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-q6_k.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\mmq-instance-q8_0.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-vec-f16-instance-hs128-q4_0-q4_0.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-vec-f32-instance-hs128-q4_0-q4_0.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-vec-f16-instance-hs128-q8_0-q8_0.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-vec-f32-instance-hs128-q8_0-q8_0.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-vec-f16-instance-hs128-f16-f16.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-vec-f16-instance-hs256-f16-f16.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-vec-f16-instance-hs64-f16-f16.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-vec-f32-instance-hs128-f16-f16.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-vec-f32-instance-hs256-f16-f16.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="template-instances\fattn-vec-f32-instance-hs64-f16-f16.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\acc.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\arange.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\argmax.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\argsort.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\binbcast.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\clamp.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\common.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\concat.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\conv-transpose-1d.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\convert.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\count-equal.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\cp-async.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\cpy.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\cross-entropy-loss.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\dequantize.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\diagmask.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn-common.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn-mma-f16.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn-tile-f16.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn-tile-f32.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn-vec-f16.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn-vec-f32.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn-wmma-f16.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\fattn.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\getrows.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\gla.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\im2col.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\mma.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\mmq.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\mmv.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\mmvq.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\norm.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\opt-step-adamw.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\out-prod.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\pad.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\pool2d.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\quantize.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\rope.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\scale.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\softmax.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\ssm-conv.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\ssm-scan.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\sum.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\sumrows.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\tsembd.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\unary.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\upscale.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\vecdotq.cuh" />
+    <None Include="G:\github\autotalk_c\whisper.cpp\ggml\src\ggml-cuda\wkv.cuh" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{24FE6A37-F7FD-361C-8383-3A5F3622733F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{A7191B66-D5C5-3721-B329-6268B501138A}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
