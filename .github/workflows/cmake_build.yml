@@ -93,6 +93,9 @@ jobs:
       
       - name: 修改CMakeLists.txt完全移除CUDA依赖
         run: |
+          # 创建一个临时的备份
+          cp CMakeLists.txt CMakeLists.txt.original
+        
           # 完全移除CUDA依赖
           sed -i.bak 's/LANGUAGES CXX CUDA/LANGUAGES CXX/g' CMakeLists.txt
           sed -i.bak 's/check_language(CUDA)/#check_language(CUDA)/g' CMakeLists.txt
@@ -114,16 +117,22 @@ jobs:
           sed -i.bak 's/option(GGML_CUDA "Enable CUDA for GPU acceleration" ON)/option(GGML_CUDA "Enable CUDA for GPU acceleration" OFF)/g' CMakeLists.txt
           sed -i.bak 's/target_compile_definitions(autotalk PRIVATE USE_CUDA)/#target_compile_definitions(autotalk PRIVATE USE_CUDA)/g' CMakeLists.txt
           
-          # 添加Metal支持
-          cat >> CMakeLists.txt << EOL
-          
-          # 启用Metal支持
+          # 创建Metal支持文件
+          cat > mac_metal.cmake << EOL
+          # Metal支持
           option(GGML_METAL "Enable Metal for GPU acceleration on macOS" ON)
           if(GGML_METAL)
               target_compile_definitions(autotalk PRIVATE GGML_USE_METAL)
               message(STATUS "启用Metal加速")
           endif()
           EOL
+          
+          # 将Metal支持添加到CMakeLists.txt中
+          cat mac_metal.cmake >> CMakeLists.txt
+          
+          # 显示最终的CMakeLists.txt
+          echo "修改后的CMakeLists.txt(末尾):"
+          tail -n 20 CMakeLists.txt
       
       - name: CMake配置和构建
         run: |
@@ -140,20 +149,17 @@ jobs:
           export CPPFLAGS="-I$LLVM_PATH/include"
           
           echo "配置MacOS版本的AutoTalk (Metal版本)..."
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_CUDA=OFF -DGGML_CUDA=OFF -DGGML_METAL=ON
-          
-          if [ $? -ne 0 ]; then
-              echo "CMake配置失败!"
-              exit 1
-          fi
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_CUDA=OFF -DGGML_CUDA=OFF -DGGML_METAL=ON || {
+            echo "CMake配置失败:"
+            cat CMakeFiles/CMakeError.log || echo "无法显示CMake错误日志"
+            exit 1
+          }
           
           echo "编译MacOS版本的AutoTalk (Metal版本)..."
-          cmake --build . --config Release
-          
-          if [ $? -ne 0 ]; then
-              echo "AutoTalk编译失败!"
-              exit 1
-          fi
+          cmake --build . --config Release || {
+            echo "构建失败"
+            exit 1
+          }
           
           echo "AutoTalk Metal版本编译完成!"
       
