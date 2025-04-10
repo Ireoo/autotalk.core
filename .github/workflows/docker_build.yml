@@ -1,0 +1,309 @@
+name: Docker容器构建AutoTalk
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-linux-cuda:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.1.0-devel-ubuntu22.04
+      options: --gpus all
+    steps:
+      - name: 安装基本依赖
+        run: |
+          apt-get update
+          apt-get install -y git build-essential cmake wget curl zip unzip \
+              libasound2-dev portaudio19-dev libopenblas-dev
+
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: 构建AutoTalk主程序
+        run: |
+          chmod +x build_autotalk_gpu.sh
+          ./build_autotalk_gpu.sh
+      
+      - name: 保存可执行文件
+        uses: actions/upload-artifact@v4
+        with:
+          name: autotalk-linux-docker
+          path: build_autotalk_gpu/bin/autotalk
+
+  build-windows-cuda:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: 设置Docker
+        uses: crazy-max/ghaction-setup-docker@v2
+      
+      - name: 构建Windows Docker镜像
+        run: |
+          # 创建Dockerfile
+          echo "FROM nvidia/cuda:12.1.0-devel-windowsservercore-2022" > Dockerfile.win
+          echo "SHELL [\"powershell\", \"-Command\", \"\$ErrorActionPreference = 'Stop'; \$ProgressPreference = 'SilentlyContinue';\" ]" >> Dockerfile.win
+          echo "RUN mkdir C:\\build" >> Dockerfile.win
+          echo "WORKDIR C:\\build" >> Dockerfile.win
+          echo "RUN choco install -y cmake git visualstudio2022buildtools visualstudio2022-workload-vctools" >> Dockerfile.win
+          echo "COPY . C:\\build" >> Dockerfile.win
+          echo "CMD build_autotalk_gpu.bat" >> Dockerfile.win
+          
+          # 构建Docker镜像
+          docker build -t autotalk-windows -f Dockerfile.win .
+        shell: pwsh
+      
+      - name: 在Docker中构建AutoTalk
+        run: |
+          # 创建Windows构建脚本
+          echo "@echo off" > build_autotalk_gpu.bat
+          echo "mkdir build_autotalk_gpu" >> build_autotalk_gpu.bat
+          echo "cd build_autotalk_gpu" >> build_autotalk_gpu.bat
+          echo "cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_CUDA=ON -DGGML_CUDA=ON" >> build_autotalk_gpu.bat
+          echo "cmake --build . --config Release" >> build_autotalk_gpu.bat
+          
+          # 运行Docker容器进行构建
+          docker run --rm -v ${PWD}:C:\build autotalk-windows
+        shell: pwsh
+      
+      - name: 保存可执行文件
+        uses: actions/upload-artifact@v4
+        with:
+          name: autotalk-windows-docker
+          path: build_autotalk_gpu/bin/Release/autotalk.exe
+          if-no-files-found: warn
+
+  build-macos-metal:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: 安装依赖和Docker
+        run: |
+          brew install docker portaudio llvm libomp
+          colima start
+      
+      - name: 准备MacOS Docker构建
+        run: |
+          # 创建Dockerfile
+          cat > Dockerfile.mac << EOL
+          FROM --platform=linux/amd64 ubuntu:22.04
+          RUN apt-get update && apt-get install -y \
+              build-essential cmake git curl wget zip unzip \
+              libportaudio2 portaudio19-dev
+          WORKDIR /app
+          COPY . /app
+          
+          # 提供CPU版本的构建脚本
+          RUN echo "#!/bin/bash" > build_mac_cpu.sh && \
+              echo "mkdir -p build_cpu" >> build_mac_cpu.sh && \
+              echo "cd build_cpu" >> build_mac_cpu.sh && \
+              echo "cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_CUDA=OFF -DGGML_CUDA=OFF" >> build_mac_cpu.sh && \
+              echo "cmake --build . --config Release" >> build_mac_cpu.sh && \
+              echo "mkdir -p /app/output/bin" >> build_mac_cpu.sh && \
+              echo "cp bin/autotalk /app/output/bin/" >> build_mac_cpu.sh && \
+              chmod +x build_mac_cpu.sh
+          
+          # 默认执行构建
+          CMD ["./build_mac_cpu.sh"]
+          EOL
+          
+          # 创建专用于Metal的本地构建脚本
+          cat > build_mac_metal.sh << EOL
+          #!/bin/bash
+          
+          # 设置错误处理
+          set -e
+          
+          # 创建构建目录
+          mkdir -p build_metal
+          cd build_metal
+          
+          # 配置Metal版本
+          export LLVM_PATH=\$(brew --prefix llvm)
+          export CC=\$LLVM_PATH/bin/clang
+          export CXX=\$LLVM_PATH/bin/clang++
+          export LDFLAGS="-L\$LLVM_PATH/lib -Wl,-rpath,\$LLVM_PATH/lib"
+          export CPPFLAGS="-I\$LLVM_PATH/include"
+          
+          echo "创建Metal版的CMakeLists.txt"
+          cat > ../CMakeLists.txt.metal << EOL2
+          cmake_minimum_required(VERSION 3.18)
+          project(AutoTalkMetal LANGUAGES CXX)
+          
+          # 设置模块路径
+          list(APPEND CMAKE_MODULE_PATH \${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+          
+          # 设置C++标准
+          set(CMAKE_CXX_STANDARD 14)
+          set(CMAKE_CXX_STANDARD_REQUIRED ON)
+          
+          # 设置输出目录
+          set(CMAKE_RUNTIME_OUTPUT_DIRECTORY \${CMAKE_BINARY_DIR}/bin)
+          
+          # 添加whisper.cpp库路径
+          add_subdirectory(whisper.cpp)
+          include_directories(\${CMAKE_CURRENT_SOURCE_DIR}/whisper.cpp)
+          include_directories(\${CMAKE_CURRENT_SOURCE_DIR}/whisper.cpp/include)
+          
+          # 禁用CUDA, 启用Metal
+          option(GGML_CUDA "Enable CUDA for GPU acceleration" OFF)
+          option(GGML_METAL "Enable Metal for GPU acceleration on macOS" ON)
+          
+          # 添加源文件
+          add_executable(autotalk src/main.cpp src/audio_recorder.cpp)
+          
+          # 链接autotalk所需的库
+          target_link_libraries(autotalk PRIVATE whisper)
+          
+          if(GGML_METAL)
+              target_compile_definitions(autotalk PRIVATE GGML_USE_METAL)
+              message(STATUS "启用Metal加速")
+          endif()
+          EOL2
+          
+          # 备份和替换CMakeLists.txt
+          cp ../CMakeLists.txt ../CMakeLists.txt.original
+          cp ../CMakeLists.txt.metal ../CMakeLists.txt
+          
+          # 配置和构建
+          echo "配置MacOS版本的AutoTalk (Metal版本)..."
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          
+          echo "编译MacOS版本的AutoTalk (Metal版本)..."
+          cmake --build . --config Release
+          
+          # 恢复原始CMakeLists.txt
+          cp ../CMakeLists.txt.original ../CMakeLists.txt
+          
+          # 创建输出目录
+          mkdir -p ../output/bin
+          cp bin/autotalk ../output/bin/
+          EOL
+          
+          chmod +x build_mac_metal.sh
+      
+      - name: 构建CPU版本(Docker)
+        run: |
+          docker build -t autotalk-macos -f Dockerfile.mac .
+          docker run --rm -v ${PWD}/output:/app/output autotalk-macos
+      
+      - name: 构建Metal版本(本地)
+        run: |
+          ./build_mac_metal.sh
+      
+      - name: 保存可执行文件
+        uses: actions/upload-artifact@v4
+        with:
+          name: autotalk-macos-metal
+          path: output/bin/autotalk
+          if-no-files-found: warn
+
+  build-models:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:22.04
+    steps:
+      - name: 安装基本依赖
+        run: |
+          apt-get update
+          apt-get install -y curl wget unzip zip git
+      
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: 下载Whisper模型
+        run: |
+          mkdir -p models
+          
+          # 下载小型中文模型
+          curl -L "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin" -o models/ggml-small.bin
+          
+          echo "模型下载完成!"
+      
+      - name: 保存模型文件
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisper-models-docker
+          path: models/
+
+  package-docker-release:
+    needs: [build-linux-cuda, build-windows-cuda, build-macos-metal, build-models]
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:22.04
+    steps:
+      - name: 安装基本依赖
+        run: |
+          apt-get update
+          apt-get install -y zip unzip
+      
+      - uses: actions/checkout@v3
+      
+      - name: 下载所有编译产物
+        uses: actions/download-artifact@v3
+        with:
+          path: docker-binaries
+      
+      - name: 准备发布包
+        run: |
+          mkdir -p docker-release/windows
+          mkdir -p docker-release/linux
+          mkdir -p docker-release/macos
+          mkdir -p docker-release/models
+          
+          # 复制各平台文件
+          cp -r docker-binaries/autotalk-windows-docker/* docker-release/windows/ || echo "Windows构建可能不存在"
+          cp -r docker-binaries/autotalk-linux-docker/* docker-release/linux/ || echo "Linux构建可能不存在"
+          cp -r docker-binaries/autotalk-macos-metal/* docker-release/macos/ || echo "macOS构建可能不存在"
+          cp -r docker-binaries/whisper-models-docker/* docker-release/models/ || echo "模型可能不存在"
+          
+          # 创建README
+          cat > docker-release/README.md << EOL
+          # AutoTalk跨平台Docker构建版本
+          
+          此发布包含使用Docker容器环境为不同平台构建的AutoTalk语音识别程序：
+          
+          - Windows: windows/autotalk.exe (CUDA GPU加速)
+          - Linux: linux/autotalk (CUDA GPU加速)
+          - MacOS: macos/autotalk (Metal GPU加速)
+          
+          ## 使用方法
+          
+          1. 根据您的平台选择相应的可执行文件
+          2. 运行命令: \`./autotalk ../models/ggml-small.bin\`
+          
+          ## 系统要求
+          
+          - Windows/Linux: 需要安装CUDA运行时环境以实现GPU加速
+          - MacOS: 需要支持Metal的Apple GPU (Apple M系列芯片或较新的AMD GPU)
+          
+          ## Docker构建优势
+          
+          本版本使用Docker容器构建，提供以下优势：
+          - 一致的构建环境
+          - 减少依赖冲突
+          - 更好的跨平台兼容性
+          - 易于复现的构建过程
+          EOL
+      
+      - name: 创建Docker构建发布包
+        run: |
+          cd docker-release
+          zip -r ../autotalk-docker-builds.zip *
+      
+      - name: 上传Docker构建包
+        uses: actions/upload-artifact@v4
+        with:
+          name: autotalk-docker-builds
+          path: autotalk-docker-builds.zip 
