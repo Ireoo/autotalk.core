@@ -1,0 +1,216 @@
+name: CMake跨平台AutoTalk构建
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: 安装CUDA
+        uses: Jimver/cuda-toolkit@v0.2.11
+        id: cuda-toolkit
+        with:
+          cuda: '12.3.2'
+          method: 'network'
+          sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust", "visual_studio_integration"]'
+      
+      - name: 检查音频库
+        run: |
+          echo "为Windows配置音频库"
+        shell: bash
+      
+      - name: 设置CMake
+        uses: lukka/get-cmake@latest
+      
+      - name: CMake配置和构建
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=75 -DUSE_CUDA=ON -DGGML_CUDA=ON
+          cmake --build . --config Release
+        shell: bash
+      
+      - name: 保存构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: autotalk-cmake-windows
+          path: |
+            build/bin/**/*.exe
+  
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: 安装CUDA
+        uses: Jimver/cuda-toolkit@v0.2.11
+        id: cuda-toolkit
+        with:
+          cuda: '12.3.2'
+          method: 'network'
+          sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust"]'
+      
+      - name: 安装音频库
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev portaudio19-dev libopenblas-dev
+      
+      - name: 设置CMake
+        uses: lukka/get-cmake@latest
+      
+      - name: CMake配置和构建
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=75 -DUSE_CUDA=ON -DGGML_CUDA=ON
+          cmake --build . --config Release
+      
+      - name: 保存构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: autotalk-cmake-linux
+          path: build/bin/*
+          if-no-files-found: warn
+  
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: 安装音频库
+        run: |
+          brew install portaudio
+      
+      - name: 设置CMake
+        uses: lukka/get-cmake@latest
+      
+      - name: 创建模拟CMakeLists.txt用于MacOS
+        run: |
+          # 确保原始CMakeLists.txt能够在没有CUDA的情况下编译
+          sed -i.bak 's/LANGUAGES CXX CUDA/LANGUAGES CXX/g' CMakeLists.txt
+          sed -i.bak 's/add_definitions(-DUSE_CUDA)/#add_definitions(-DUSE_CUDA)/g' CMakeLists.txt
+          sed -i.bak 's/option(GGML_CUDA "Enable CUDA for GPU acceleration" ON)/option(GGML_CUDA "Enable CUDA for GPU acceleration" OFF)/g' CMakeLists.txt
+          sed -i.bak 's/target_compile_definitions(autotalk PRIVATE USE_CUDA)/#target_compile_definitions(autotalk PRIVATE USE_CUDA)/g' CMakeLists.txt
+      
+      - name: CMake配置和构建
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_CUDA=OFF -DGGML_CUDA=OFF
+          cmake --build . --config Release
+      
+      - name: 保存构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: autotalk-cmake-macos
+          path: build/bin/autotalk
+          if-no-files-found: warn
+  
+  build-models:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: 准备模型目录
+        run: |
+          mkdir -p models
+          echo "准备下载whisper模型..."
+          
+          # 创建模型下载脚本
+          cat > download_models.sh << EOL
+          #!/bin/bash
+          
+          # 设置模型目录
+          MODELS_DIR="./models"
+          mkdir -p "\${MODELS_DIR}"
+          
+          # 下载小型中文模型示例 (仅作为示例，实际使用中可能需要更大的模型)
+          echo "下载小型中文模型示例..."
+          curl -L "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin" -o "\${MODELS_DIR}/ggml-small.bin"
+          
+          echo "模型下载完成!"
+          EOL
+          
+          chmod +x download_models.sh
+          ./download_models.sh
+      
+      - name: 保存模型文件
+        uses: actions/upload-artifact@v3
+        with:
+          name: whisper-models-cmake
+          path: models/
+  
+  package-cmake-release:
+    needs: [build-windows, build-linux, build-macos, build-models]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: 下载所有编译产物
+        uses: actions/download-artifact@v3
+        with:
+          path: cmake-binaries
+      
+      - name: 准备CMake发布包
+        run: |
+          mkdir -p cmake-release/windows
+          mkdir -p cmake-release/linux
+          mkdir -p cmake-release/macos
+          mkdir -p cmake-release/models
+          
+          # 复制各平台文件
+          cp -r cmake-binaries/autotalk-cmake-windows/* cmake-release/windows/ || echo "Windows构建可能不存在"
+          cp -r cmake-binaries/autotalk-cmake-linux/* cmake-release/linux/ || echo "Linux构建可能不存在"
+          cp -r cmake-binaries/autotalk-cmake-macos/* cmake-release/macos/ || echo "MacOS构建可能不存在"
+          cp -r cmake-binaries/whisper-models-cmake/* cmake-release/models/ || echo "模型可能不存在"
+          
+          # 创建README
+          cat > cmake-release/README.md << EOL
+          # AutoTalk跨平台CMake构建版本
+          
+          此发布包含使用CMake为不同平台构建的AutoTalk语音识别程序：
+          
+          - Windows: windows/autotalk.exe (GPU加速版本)
+          - Linux: linux/autotalk (GPU加速版本)
+          - MacOS: macos/autotalk (CPU版本，因为MacOS不支持CUDA)
+          
+          ## 使用方法
+          
+          1. 根据您的平台选择相应的可执行文件
+          2. 运行命令: \`./autotalk ../models/ggml-small.bin\`
+          
+          注意: Windows和Linux版本需要CUDA运行时环境以实现GPU加速。
+          
+          ## CUDA测试程序
+          
+          CMake构建也会生成CUDA测试程序：
+          - Windows: windows/simple_cuda_test.exe, windows/cuda_test.exe
+          - Linux: linux/simple_cuda_test, linux/cuda_test
+          - MacOS: 不适用
+          EOL
+      
+      - name: 创建CMake发布压缩包
+        run: |
+          cd cmake-release
+          zip -r ../autotalk-cmake-all-platforms.zip *
+      
+      - name: 上传CMake发布包
+        uses: actions/upload-artifact@v3
+        with:
+          name: autotalk-cmake-all-platforms
+          path: autotalk-cmake-all-platforms.zip 

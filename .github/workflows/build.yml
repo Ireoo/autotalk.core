@@ -1,0 +1,261 @@
+name: 跨平台AutoTalk构建
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: 安装CUDA
+        uses: Jimver/cuda-toolkit@v0.2.11
+        id: cuda-toolkit
+        with:
+          cuda: '12.3.2'
+          method: 'network'
+          sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust", "visual_studio_integration"]'
+      
+      - name: 检查CUDA安装
+        run: |
+          nvcc --version
+          echo "CUDA安装路径: ${{steps.cuda-toolkit.outputs.CUDA_PATH}}"
+        shell: bash
+      
+      - name: 构建独立CUDA测试程序
+        run: |
+          chmod +x build_cuda_test_standalone.sh
+          ./build_cuda_test_standalone.sh
+        shell: bash
+      
+      - name: 构建AutoTalk主程序
+        run: |
+          chmod +x build_autotalk_gpu.sh
+          ./build_autotalk_gpu.sh
+        shell: bash
+      
+      - name: 保存可执行文件
+        uses: actions/upload-artifact@v3
+        with:
+          name: autotalk-windows
+          path: |
+            build_autotalk_gpu/bin/autotalk.exe
+            build_cuda_test_standalone/cuda_test.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: 安装CUDA和音频依赖
+        uses: Jimver/cuda-toolkit@v0.2.11
+        id: cuda-toolkit
+        with:
+          cuda: '12.3.2'
+          method: 'network'
+          sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust"]'
+      
+      - name: 安装音频库
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev portaudio19-dev libopenblas-dev
+      
+      - name: 检查CUDA安装
+        run: |
+          nvcc --version
+          echo "CUDA安装路径: ${{steps.cuda-toolkit.outputs.CUDA_PATH}}"
+      
+      - name: 构建独立CUDA测试程序
+        run: |
+          chmod +x build_cuda_test_standalone.sh
+          ./build_cuda_test_standalone.sh
+      
+      - name: 构建AutoTalk主程序
+        run: |
+          chmod +x build_autotalk_gpu.sh
+          ./build_autotalk_gpu.sh
+      
+      - name: 保存可执行文件
+        uses: actions/upload-artifact@v3
+        with:
+          name: autotalk-linux
+          path: |
+            build_autotalk_gpu/bin/autotalk
+            build_cuda_test_standalone/cuda_test
+  
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: 安装音频库
+        run: |
+          brew install portaudio
+      
+      - name: 修改测试代码以适应MacOS
+        run: |
+          # 创建没有CUDA功能的版本
+          cat > src/no_cuda_test.cpp << EOL
+          #include <iostream>
+          
+          int main() {
+              std::cout << "MacOS测试 - CUDA不可用" << std::endl;
+              std::cout << "检测到0个CUDA设备" << std::endl;
+              std::cout << "MacOS平台不支持原生CUDA，这是一个模拟测试" << std::endl;
+              return 0;
+          }
+          EOL
+          
+          # 修改主程序CMake以适应MacOS
+          cat > macos_build.sh << EOL
+          #!/bin/bash
+          
+          # 颜色定义
+          RED='\033[0;31m'
+          GREEN='\033[0;32m'
+          YELLOW='\033[1;33m'
+          BLUE='\033[0;34m'
+          NC='\033[0m' # 无颜色
+          
+          mkdir -p build_autotalk_mac
+          cd build_autotalk_mac
+          
+          echo -e "${BLUE}[INFO]${NC} 配置MacOS版本的AutoTalk (CPU模式)..."
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=OFF -DUSE_CUDA=OFF
+          
+          echo -e "${BLUE}[INFO]${NC} 编译MacOS版本的AutoTalk..."
+          cmake --build . --config Release
+          
+          if [ $? -ne 0 ]; then
+              echo -e "${RED}[ERROR]${NC} AutoTalk编译失败!"
+              exit 1
+          fi
+          
+          echo -e "${GREEN}[SUCCESS]${NC} AutoTalk编译完成!"
+          EOL
+          
+          chmod +x macos_build.sh
+      
+      - name: 编译MacOS版本
+        run: |
+          mkdir -p build_cuda_test_standalone
+          clang++ -std=c++14 -o build_cuda_test_standalone/no_cuda_test src/no_cuda_test.cpp
+          echo "MacOS测试程序编译完成"
+          
+          # 编译AutoTalk的CPU版本
+          ./macos_build.sh
+      
+      - name: 保存测试可执行文件
+        uses: actions/upload-artifact@v3
+        with:
+          name: autotalk-macos
+          path: |
+            build_autotalk_mac/bin/autotalk
+            build_cuda_test_standalone/no_cuda_test
+  
+  build-models:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: 准备模型目录
+        run: |
+          mkdir -p models
+          echo "准备下载whisper模型..."
+          
+          # 创建模型下载脚本
+          cat > download_models.sh << EOL
+          #!/bin/bash
+          
+          # 设置模型目录
+          MODELS_DIR="./models"
+          mkdir -p "\${MODELS_DIR}"
+          
+          # 下载小型中文模型示例 (仅作为示例，实际使用中可能需要更大的模型)
+          echo "下载小型中文模型示例..."
+          curl -L "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin" -o "\${MODELS_DIR}/ggml-small.bin"
+          
+          echo "模型下载完成!"
+          EOL
+          
+          chmod +x download_models.sh
+          ./download_models.sh
+      
+      - name: 保存模型文件
+        uses: actions/upload-artifact@v3
+        with:
+          name: whisper-models
+          path: models/
+  
+  package-release:
+    needs: [build-windows, build-linux, build-macos, build-models]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: 下载所有编译产物
+        uses: actions/download-artifact@v3
+        with:
+          path: binaries
+      
+      - name: 准备发布包
+        run: |
+          mkdir -p release/windows
+          mkdir -p release/linux
+          mkdir -p release/macos
+          mkdir -p release/models
+          
+          # 复制各平台文件
+          cp -r binaries/autotalk-windows/* release/windows/ || echo "Windows构建可能不存在"
+          cp -r binaries/autotalk-linux/* release/linux/ || echo "Linux构建可能不存在"
+          cp -r binaries/autotalk-macos/* release/macos/ || echo "macOS构建可能不存在"
+          cp -r binaries/whisper-models/* release/models/ || echo "模型可能不存在"
+          
+          # 创建README
+          cat > release/README.md << EOL
+          # AutoTalk跨平台版本
+          
+          此发布包含为不同平台构建的AutoTalk语音识别程序：
+          
+          - Windows: windows/autotalk.exe
+          - Linux: linux/autotalk
+          - MacOS: macos/autotalk (CPU版本，因为MacOS不支持CUDA)
+          
+          ## 使用方法
+          
+          1. 根据您的平台选择相应的可执行文件
+          2. 运行命令: \`./autotalk ../models/ggml-small.bin\`
+          
+          注意: Windows和Linux版本需要CUDA运行时环境以实现GPU加速。
+          
+          ## 测试程序
+          
+          各平台也提供了CUDA测试程序，用于验证CUDA环境是否正确配置：
+          - Windows: windows/cuda_test.exe
+          - Linux: linux/cuda_test
+          - MacOS: macos/no_cuda_test (仅模拟测试)
+          EOL
+      
+      - name: 创建发布压缩包
+        run: |
+          cd release
+          zip -r ../autotalk-all-platforms.zip *
+      
+      - name: 上传发布包
+        uses: actions/upload-artifact@v3
+        with:
+          name: autotalk-all-platforms
+          path: autotalk-all-platforms.zip 

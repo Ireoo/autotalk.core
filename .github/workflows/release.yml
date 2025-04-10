@@ -1,0 +1,189 @@
+name: 创建GitHub Release发布
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (如 v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: 确定版本号
+        id: get_version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          fi
+      
+      - name: 运行所有构建工作流
+        run: |
+          gh workflow run build.yml
+          gh workflow run cmake_build.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 等待工作流完成
+        run: |
+          echo "等待构建工作流完成..."
+          sleep 600  # 等待10分钟
+      
+      - name: 下载所有构建产物
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: build.yml
+          path: all-artifacts
+          workflow_conclusion: success
+          if_no_artifact_found: warn
+      
+      - name: 下载CMake构建产物
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: cmake_build.yml
+          path: cmake-artifacts
+          workflow_conclusion: success
+          if_no_artifact_found: warn
+      
+      - name: 准备发布文件
+        run: |
+          mkdir -p release-files
+          # 如果存在ZIP文件，直接复制
+          find all-artifacts -name "*.zip" -exec cp {} release-files/ \;
+          find cmake-artifacts -name "*.zip" -exec cp {} release-files/ \;
+          
+          # 创建各平台目录结构
+          mkdir -p release-files/windows
+          mkdir -p release-files/linux
+          mkdir -p release-files/macos
+          mkdir -p release-files/models
+          
+          # 复制各平台可执行文件
+          # 标准构建产物
+          for file in $(find all-artifacts/autotalk-windows -type f -name "*.exe"); do
+            cp "$file" release-files/windows/
+          done
+          
+          for file in $(find all-artifacts/autotalk-linux -type f -not -name "*.exe"); do
+            cp "$file" release-files/linux/
+          done
+          
+          for file in $(find all-artifacts/autotalk-macos -type f -not -name "*.exe"); do
+            cp "$file" release-files/macos/
+          done
+          
+          # CMake构建产物
+          for file in $(find cmake-artifacts/autotalk-cmake-windows -type f -name "*.exe"); do
+            cp "$file" release-files/windows/
+          done
+          
+          for file in $(find cmake-artifacts/autotalk-cmake-linux -type f -not -name "*.exe"); do
+            cp "$file" release-files/linux/
+          done
+          
+          for file in $(find cmake-artifacts/autotalk-cmake-macos -type f -not -name "*.exe"); do
+            cp "$file" release-files/macos/
+          done
+          
+          # 复制模型文件
+          cp -r all-artifacts/whisper-models/* release-files/models/ || echo "模型可能不存在"
+          cp -r cmake-artifacts/whisper-models-cmake/* release-files/models/ || echo "CMake模型可能不存在"
+          
+          # 创建README
+          cat > release-files/README.md << EOL
+          # AutoTalk语音识别程序 ${{ env.VERSION }}
+          
+          此发布包含为不同平台构建的AutoTalk语音识别程序：
+          
+          - Windows: 见 windows/ 目录
+            - autotalk.exe (主程序)
+            - cuda_test.exe (CUDA测试程序)
+            - simple_cuda_test.exe (简单CUDA测试程序)
+          
+          - Linux: 见 linux/ 目录
+            - autotalk (主程序)
+            - cuda_test (CUDA测试程序)
+            - simple_cuda_test (简单CUDA测试程序)
+          
+          - MacOS: 见 macos/ 目录
+            - autotalk (CPU版本，因为MacOS不支持CUDA)
+            - no_cuda_test (模拟CUDA测试)
+          
+          - 模型: 见 models/ 目录
+            - ggml-small.bin (whisper小型模型)
+          
+          ## 使用方法
+          
+          1. 根据您的平台选择相应的可执行文件
+          2. 运行命令: \`./autotalk ../models/ggml-small.bin\`
+          
+          ## 系统要求
+          
+          - Windows/Linux: 需要安装CUDA运行时环境以实现GPU加速
+          - MacOS: 不需要特殊依赖，但性能会受限于CPU
+          
+          ## 更新日志
+          
+          - 支持多平台构建
+          - 提供独立编译和CMake编译两种方式
+          - 为MacOS提供CPU兼容版本
+          - 包含CUDA测试程序用于验证GPU环境
+          EOL
+          
+          # 创建最终发布ZIP
+          cd release-files
+          zip -r ../autotalk-release-${{ env.VERSION }}.zip *
+      
+      - name: 创建GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: AutoTalk语音识别程序 ${{ env.VERSION }}
+          tag_name: ${{ env.VERSION }}
+          draft: false
+          prerelease: false
+          files: |
+            autotalk-release-${{ env.VERSION }}.zip
+            release-files/*.zip
+          body: |
+            # AutoTalk语音识别程序 ${{ env.VERSION }}
+            
+            此版本提供了适用于多平台的AutoTalk语音识别程序：
+            
+            ## 支持平台
+            
+            - Windows (GPU加速)
+            - Linux (GPU加速)
+            - MacOS (CPU版本)
+            
+            ## 主要特性
+            
+            - 实时语音识别，支持中文
+            - GPU加速处理（Windows/Linux）
+            - 包含Whisper小型模型
+            - 轻量级跨平台设计
+            
+            ## 系统要求
+            
+            - Windows/Linux: 需要安装CUDA运行时环境以实现GPU加速
+            - MacOS: 不需要特殊依赖，但性能会受限于CPU
+            
+            ## 安装说明
+            
+            1. 下载对应平台的发布包
+            2. 解压后，运行主程序 `autotalk` 并提供模型路径作为参数
+            
+            完整构建也提供了CUDA测试程序，用于验证您的GPU环境是否正确配置。
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
