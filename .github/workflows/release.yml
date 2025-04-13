@@ -48,11 +48,11 @@ jobs:
 
     - name: Package files
       run: |
-        if (${{ matrix.os }} == "windows-latest") {
+        if ("${{ matrix.os }}" == "windows-latest") {
           cd Release
           Compress-Archive -Path * -DestinationPath ../autotalk-windows.zip
           cd ..
-        } elseif (${{ matrix.os }} == "ubuntu-latest") {
+        } elseif ("${{ matrix.os }}" == "ubuntu-latest") {
           cd Release
           tar -czvf ../autotalk-linux.tar.gz .
           cd ..
