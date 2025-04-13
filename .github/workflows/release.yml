@@ -78,9 +78,8 @@ jobs:
         fail_on_unmatched_files: false
         append_body: true
         files: |
-          autotalk-windows.zip
-          autotalk-linux.tar.gz
-          autotalk-macos.tar.gz
+          *.zip
+          *.tar.gz
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
