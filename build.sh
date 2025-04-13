@@ -30,8 +30,9 @@ fi
 if [ ! -d "third_party/boost" ]; then
     echo "正在下载Boost库..."
     mkdir -p third_party
-    curl -L https://boostorg.jfrog.io/boostorg/release/1.83.0/source/boost_1_83_0.tar.gz -o third_party/boost.tar.gz
+    wget https://github.com/boostorg/boost/releases/download/boost-1.88.0/boost-1.88.0-b2-nodocs.tar.gz -O third_party/boost.tar.gz
     tar -xzf third_party/boost.tar.gz -C third_party
+    mv third_party/boost-1.88.0 third_party/boost
     rm third_party/boost.tar.gz
 fi
 
