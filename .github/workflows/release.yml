@@ -46,21 +46,26 @@ jobs:
       run: |
         bash build.sh
 
-    - name: Package files
+    - name: Package files (Windows)
+      if: matrix.os == 'windows-latest'
       run: |
-        if ("${{ matrix.os }}" == "windows-latest") {
-          cd Release
-          Compress-Archive -Path * -DestinationPath ../autotalk-windows.zip
-          cd ..
-        } elseif ("${{ matrix.os }}" == "ubuntu-latest") {
-          cd Release
-          tar -czvf ../autotalk-linux.tar.gz .
-          cd ..
-        } else {
-          cd Release
-          tar -czvf ../autotalk-macos.tar.gz .
-          cd ..
-        }
+        cd Release
+        Compress-Archive -Path * -DestinationPath ../autotalk-windows.zip
+        cd ..
+
+    - name: Package files (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        cd Release
+        tar -czvf ../autotalk-linux.tar.gz .
+        cd ..
+
+    - name: Package files (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        cd Release
+        tar -czvf ../autotalk-macos.tar.gz .
+        cd ..
 
     - name: Create Release
       id: create_release
