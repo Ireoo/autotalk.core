@@ -30,7 +30,9 @@ fi
 if [ ! -d "third_party/boost" ]; then
     echo "正在下载Boost库..."
     mkdir -p third_party
-    git clone --recursive https://github.com/boostorg/boost.git third_party/boost
+    curl -L https://boostorg.jfrog.io/boostorg/release/1.83.0/source/boost_1_83_0.tar.gz -o third_party/boost.tar.gz
+    tar -xzf third_party/boost.tar.gz -C third_party
+    rm third_party/boost.tar.gz
 fi
 
 echo "系统类型: $OSTYPE"
