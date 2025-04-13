@@ -3,7 +3,7 @@ name: Release Build
 on:
   push:
     branches:
-      - master  # 当推送到 master 分支时触发
+      - main  # 当推送到 main 分支时触发
 
 jobs:
   build:
