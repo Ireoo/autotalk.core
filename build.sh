@@ -111,9 +111,6 @@ fi
 # 复制Boost DLL文件
 cp -f third_party/install/lib/*.dll Release/
 
-# 复制模型文件
-cp -f models/*.bin Release/
-
 echo "正在构建 libsndfile..."
 
 # 进入 libsndfile 目录
