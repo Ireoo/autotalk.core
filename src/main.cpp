@@ -22,6 +22,10 @@
 #include <Windows.h>
 #include <fcntl.h>
 #include <io.h>
+#else
+#include <termios.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
 #endif
 #include "portaudio.h"
 #include <future>
@@ -101,6 +105,7 @@ std::string convertToLocalEncoding(const char *utf8Text)
 #endif
 }
 
+#ifdef _WIN32
 void ClearConsoleBlock(HANDLE hConsole, int startRow, int lineCount, int width)
 {
     CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -110,10 +115,19 @@ void ClearConsoleBlock(HANDLE hConsole, int startRow, int lineCount, int width)
     {
         COORD coord = {0, startRow + i};
         FillConsoleOutputCharacter(hConsole, ' ', width, coord, &written);
-        // 可选：填充当前行的属性（颜色等）
         FillConsoleOutputAttribute(hConsole, csbi.wAttributes, width, coord, &written);
     }
 }
+#else
+void ClearConsoleBlock(int startRow, int lineCount, int width)
+{
+    for (int i = 0; i < lineCount; ++i)
+    {
+        printf("\033[%d;%dH", startRow + i + 1, 1);
+        printf("\033[K");
+    }
+}
+#endif
 
 // 语音识别处理线程函数
 void processSpeechRecognition()
@@ -205,6 +219,7 @@ void processSpeechRecognition()
                     // {
                     if (running)
                     {
+#ifdef _WIN32
                         // 获取控制台句柄及宽度
                         HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
                         CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -230,6 +245,15 @@ void processSpeechRecognition()
                         // 移动光标到开始行，并重新打印新的 recognized_text
                         COORD newPos = {0, (SHORT)startRow};
                         SetConsoleCursorPosition(hConsole, newPos);
+#else
+                        // 在 Linux 环境下使用 ANSI 转义序列
+                        struct winsize w;
+                        ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+                        int consoleWidth = w.ws_col;
+                        
+                        // 清除当前行并重新打印
+                        printf("\033[2K\r"); // 清除当前行
+#endif
                         std::cout << "[" << timestamp << "]: " << recognized_text << std::flush;
                     }
                     // }
@@ -334,9 +358,55 @@ int main(int argc, char **argv)
 
     // 初始化音频捕获
     AudioCapture audioCapture;
-    if (!audioCapture.initialize())
-    {
-        std::cerr << "无法初始化音频捕获" << std::endl;
+    std::cout << "正在初始化音频系统..." << std::endl;
+    
+#ifndef _WIN32
+    // Linux特定的音频系统检查
+    std::cout << "检查ALSA音频系统..." << std::endl;
+    if (system("which alsamixer > /dev/null 2>&1") != 0) {
+        std::cerr << "警告: alsamixer未安装，音频控制可能受限" << std::endl;
+    }
+    
+    if (system("which pulseaudio > /dev/null 2>&1") != 0) {
+        std::cerr << "警告: PulseAudio未安装，某些音频功能可能不可用" << std::endl;
+    }
+    
+    // 检查音频设备权限
+    if (access("/dev/snd/control0", R_OK) != 0) {
+        std::cerr << "警告: 当前用户可能没有音频设备访问权限" << std::endl;
+        std::cerr << "请尝试将用户添加到audio组: sudo usermod -a -G audio $USER" << std::endl;
+    }
+#endif
+    
+    // 尝试初始化音频系统，最多重试3次
+    int maxRetries = 3;
+    int retryCount = 0;
+    bool audioInitialized = false;
+    
+    while (retryCount < maxRetries && !audioInitialized) {
+        audioInitialized = audioCapture.initialize();
+        if (!audioInitialized) {
+            std::cerr << "音频初始化失败 (尝试 " << (retryCount + 1) << "/" << maxRetries << ")" << std::endl;
+#ifndef _WIN32
+            if (retryCount == 0) {
+                std::cerr << "请检查:\n"
+                          << "1. ALSA服务是否运行: systemctl status alsa-utils\n"
+                          << "2. 音频设备是否正确连接\n"
+                          << "3. 用户是否在audio组中\n"
+                          << "4. 是否有其他程序占用音频设备" << std::endl;
+            }
+#endif
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            retryCount++;
+        }
+    }
+    
+    if (!audioInitialized) {
+        std::cerr << "无法初始化音频系统，请检查：\n"
+                  << "1. 音频设备是否正确连接\n"
+                  << "2. 音频驱动是否正确安装\n"
+                  << "3. 是否有其他程序占用音频设备\n"
+                  << "4. 系统音频服务是否正常运行" << std::endl;
         return 1;
     }
 
@@ -345,35 +415,33 @@ int main(int argc, char **argv)
 
     // 获取并显示可用的输入设备
     auto devices = audioCapture.getInputDevices();
+    if (devices.empty()) {
+        std::cerr << "未找到可用的输入设备" << std::endl;
+        return 1;
+    }
+
     std::cout << "\n可用的输入设备：" << std::endl;
-    for (const auto &device : devices)
-    {
+    for (const auto &device : devices) {
         std::cout << device.first << ": " << device.second << std::endl;
     }
 
     // 如果指定了 --list 参数，显示设备列表后退出
-    if (listDevices)
-    {
+    if (listDevices) {
         return 0;
     }
 
     // 如果没有指定麦克风，使用列表中的第一个设备
-    if (selectedMic == -1)
-    {
-        if (!devices.empty())
-        {
-            selectedMic = devices[0].first;
-            std::cout << "\n使用默认输入设备：" << selectedMic << " (" << devices[0].second << ")" << std::endl;
-        }
-        else
-        {
-            std::cerr << "未找到可用的输入设备" << std::endl;
-            return 1;
-        }
-    }
-    else
-    {
+    if (selectedMic == -1) {
+        selectedMic = devices[0].first;
+        std::cout << "\n使用默认输入设备：" << selectedMic << " (" << devices[0].second << ")" << std::endl;
+    } else {
         std::cout << "\n使用指定的输入设备：" << selectedMic << std::endl;
+    }
+
+    // 设置输入设备
+    if (!audioCapture.setInputDevice(selectedMic)) {
+        std::cerr << "无法设置输入设备" << std::endl;
+        return 1;
     }
 
     std::cout << "正在初始化语音识别系统..." << std::endl;
@@ -389,14 +457,6 @@ int main(int argc, char **argv)
     // 初始化系统监控
     systemMonitor = new SystemMonitor();
     systemMonitor->start();
-
-    if (!audioCapture.setInputDevice(selectedMic))
-    {
-        std::cerr << "无法设置输入设备" << std::endl;
-        whisper_free(ctx);
-        delete systemMonitor;
-        return 1;
-    }
 
     // 启动音频处理线程
     std::thread processThread(processAudioStream);

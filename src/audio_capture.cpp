@@ -1,6 +1,8 @@
 #include "../include/audio_capture.h"
 #include <iostream>
 #include <set>
+#include <thread>
+#include <chrono>
 
 bool AudioCapture::comInitialized_ = false;
 
@@ -74,16 +76,72 @@ bool AudioCapture::initialize() {
         return true;
     }
     
+    // 初始化PortAudio
     PaError err = Pa_Initialize();
     if (err != paNoError) {
         std::cerr << "PortAudio 初始化失败: " << Pa_GetErrorText(err) << std::endl;
         return false;
     }
 
-#ifdef _WIN32
-    if (!comInitialized_) {
-        std::cerr << "COM 未初始化" << std::endl;
+#ifndef _WIN32
+    // Linux特定的音频配置
+    const char* hostApiName = "ALSA";
+    PaHostApiIndex hostApiIndex = Pa_HostApiTypeIdToHostApiIndex(paALSA);
+    if (hostApiIndex < 0) {
+        std::cerr << "未找到ALSA音频API" << std::endl;
+        Pa_Terminate();
         return false;
+    }
+
+    const PaHostApiInfo* hostApiInfo = Pa_GetHostApiInfo(hostApiIndex);
+    if (!hostApiInfo) {
+        std::cerr << "无法获取ALSA API信息" << std::endl;
+        Pa_Terminate();
+        return false;
+    }
+#endif
+
+    // 检查默认输入设备
+    PaDeviceIndex defaultInput = Pa_GetDefaultInputDevice();
+    if (defaultInput == paNoDevice) {
+        std::cerr << "未找到默认输入设备" << std::endl;
+        Pa_Terminate();
+        return false;
+    }
+
+    // 获取默认设备信息
+    const PaDeviceInfo* deviceInfo = Pa_GetDeviceInfo(defaultInput);
+    if (!deviceInfo) {
+        std::cerr << "无法获取默认设备信息" << std::endl;
+        Pa_Terminate();
+        return false;
+    }
+
+    // 检查设备是否支持输入
+    if (deviceInfo->maxInputChannels == 0) {
+        std::cerr << "默认设备不支持输入" << std::endl;
+        Pa_Terminate();
+        return false;
+    }
+
+#ifdef _WIN32
+    // Windows特定的初始化代码
+    if (!comInitialized_) {
+        HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+        if (SUCCEEDED(hr)) {
+            comInitialized_ = true;
+        } else if (hr == RPC_E_CHANGED_MODE) {
+            hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+            if (SUCCEEDED(hr)) {
+                comInitialized_ = true;
+            }
+        }
+        
+        if (!comInitialized_) {
+            std::cerr << "COM 初始化失败，错误代码: 0x" << std::hex << hr << std::endl;
+            Pa_Terminate();
+            return false;
+        }
     }
 
     HRESULT hr = CoCreateInstance(
@@ -94,6 +152,7 @@ bool AudioCapture::initialize() {
         (void**)&pEnumerator_);
     if (FAILED(hr)) {
         std::cerr << "创建设备枚举器失败" << std::endl;
+        Pa_Terminate();
         return false;
     }
 #endif
@@ -187,37 +246,79 @@ bool AudioCapture::start(std::function<void(const std::vector<float>&)> callback
 
     callback_ = callback;
 
-    PaStreamParameters inputParameters;
-    inputParameters.device = (currentDeviceIndex_ >= 0) ? currentDeviceIndex_ : Pa_GetDefaultInputDevice();
-    if (inputParameters.device == paNoDevice) {
-        std::cerr << "未找到输入设备" << std::endl;
-        return false;
+    // 尝试打开音频流，最多重试3次
+    int maxRetries = 3;
+    int retryCount = 0;
+    PaError err;
+
+    while (retryCount < maxRetries) {
+        PaStreamParameters inputParameters;
+        inputParameters.device = (currentDeviceIndex_ >= 0) ? currentDeviceIndex_ : Pa_GetDefaultInputDevice();
+        if (inputParameters.device == paNoDevice) {
+            std::cerr << "未找到输入设备" << std::endl;
+            return false;
+        }
+
+        const PaDeviceInfo* deviceInfo = Pa_GetDeviceInfo(inputParameters.device);
+        if (!deviceInfo) {
+            std::cerr << "无法获取设备信息" << std::endl;
+            return false;
+        }
+
+        inputParameters.channelCount = 1;
+        inputParameters.sampleFormat = paFloat32;
+        inputParameters.suggestedLatency = deviceInfo->defaultLowInputLatency;
+        inputParameters.hostApiSpecificStreamInfo = nullptr;
+
+#ifndef _WIN32
+        // Linux特定的音频流配置
+        PaAlsaStreamInfo* alsaStreamInfo = new PaAlsaStreamInfo;
+        alsaStreamInfo->size = sizeof(PaAlsaStreamInfo);
+        alsaStreamInfo->hostApiType = paALSA;
+        alsaStreamInfo->version = 1;
+        alsaStreamInfo->flags = paAlsaUseExplicitDevice;
+        alsaStreamInfo->deviceString = nullptr; // 使用默认设备
+        inputParameters.hostApiSpecificStreamInfo = alsaStreamInfo;
+#endif
+
+        err = Pa_OpenStream(
+            &stream_,
+            &inputParameters,
+            nullptr,
+            16000,
+            512,
+            paClipOff,
+            paCallback,
+            this
+        );
+
+#ifndef _WIN32
+        delete alsaStreamInfo;
+#endif
+
+        if (err == paNoError) {
+            break;
+        }
+
+        std::cerr << "打开音频流失败 (尝试 " << (retryCount + 1) << "/" << maxRetries << "): " 
+                  << Pa_GetErrorText(err) << std::endl;
+        
+        // 等待一段时间后重试
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        retryCount++;
     }
-
-    inputParameters.channelCount = 1;
-    inputParameters.sampleFormat = paFloat32;
-    inputParameters.suggestedLatency = Pa_GetDeviceInfo(inputParameters.device)->defaultLowInputLatency;
-    inputParameters.hostApiSpecificStreamInfo = nullptr;
-
-    PaError err = Pa_OpenStream(
-        &stream_,
-        &inputParameters,
-        nullptr,
-        16000,
-        512,
-        paClipOff,
-        paCallback,
-        this
-    );
 
     if (err != paNoError) {
-        std::cerr << "打开音频流失败: " << Pa_GetErrorText(err) << std::endl;
+        std::cerr << "无法打开音频流，已达到最大重试次数" << std::endl;
         return false;
     }
 
+    // 启动音频流
     err = Pa_StartStream(stream_);
     if (err != paNoError) {
         std::cerr << "启动音频流失败: " << Pa_GetErrorText(err) << std::endl;
+        Pa_CloseStream(stream_);
+        stream_ = nullptr;
         return false;
     }
 

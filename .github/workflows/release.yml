@@ -43,8 +43,19 @@ jobs:
     #     choco install cmake --version=3.29.2 --installargs 'ADD_CMAKE_TO_PATH=System'
 
     - name: Build Project
+      if: matrix.os == 'windows-latest'
       run: |
         bash build.sh
+
+    - name: Build Project
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        bash build_linux.sh
+
+    - name: Build Project
+      if: matrix.os == 'macos-latest'
+      run: |
+        bash build_linux.sh
 
     - name: Package files (Windows)
       if: matrix.os == 'windows-latest'
@@ -71,8 +82,8 @@ jobs:
       id: create_release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: v1.0.${{ github.run_number }}
-        name: Release v1.0.${{ github.run_number }}
+        tag_name: v1.0.${{ github.run_number }}-${{ github.ref_name }}
+        name: Release v1.0.${{ github.run_number }} (${{ github.ref_name }})
         draft: false
         prerelease: false
         fail_on_unmatched_files: false
