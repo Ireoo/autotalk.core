@@ -39,6 +39,7 @@ option(PA_BUILD_EXAMPLES "Build PortAudio examples" OFF)
 option(PA_BUILD_TESTS "Build PortAudio tests" OFF)
 option(PA_DLL_LINK_WITH_STATIC_RUNTIME "Link PortAudio DLL with static runtime libraries" OFF)
 option(PA_ENABLE_DEBUG_OUTPUT "Enable debug output for PortAudio" OFF)
+option(PA_USE_ALSA "Enable ALSA support" ON)
 
 # 添加PortAudio作为子项目
 add_subdirectory(portaudio)

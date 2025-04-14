@@ -40,7 +40,8 @@ fi
 cd third_party/boost
 echo "正在构建Boost库..."
 ./bootstrap.sh --with-libraries=atomic,thread,system,filesystem,regex,date_time,chrono
-./b2 install --prefix=../install
+./b2 headers
+./b2 install --prefix=../install --with-atomic --with-thread --with-system --with-filesystem --with-regex --with-date_time --with-chrono
 cd ../..
 
 # 构建 PortAudio

@@ -1,10 +1,19 @@
-#include "../include/audio_capture.h"
+#include "audio_capture.h"
+#include <portaudio.h>
+#ifndef _WIN32
+#include <pa_linux_alsa.h>
+#endif
+#include <cstring>
 #include <iostream>
 #include <set>
 #include <thread>
 #include <chrono>
+#include <algorithm>
+#include <cmath>
 
+#ifdef _WIN32
 bool AudioCapture::comInitialized_ = false;
+#endif
 
 AudioCapture::AudioCapture() 
     : stream_(nullptr)
@@ -240,85 +249,54 @@ bool AudioCapture::setInputDevice(int deviceIndex) {
 
 bool AudioCapture::start(std::function<void(const std::vector<float>&)> callback) {
     if (!initialized_) {
-        std::cerr << "AudioCapture 未初始化" << std::endl;
+        std::cerr << "错误: 音频捕获未初始化" << std::endl;
         return false;
     }
 
     callback_ = callback;
 
-    // 尝试打开音频流，最多重试3次
-    int maxRetries = 3;
-    int retryCount = 0;
     PaError err;
-
-    while (retryCount < maxRetries) {
-        PaStreamParameters inputParameters;
-        inputParameters.device = (currentDeviceIndex_ >= 0) ? currentDeviceIndex_ : Pa_GetDefaultInputDevice();
-        if (inputParameters.device == paNoDevice) {
-            std::cerr << "未找到输入设备" << std::endl;
-            return false;
-        }
-
-        const PaDeviceInfo* deviceInfo = Pa_GetDeviceInfo(inputParameters.device);
-        if (!deviceInfo) {
-            std::cerr << "无法获取设备信息" << std::endl;
-            return false;
-        }
-
-        inputParameters.channelCount = 1;
-        inputParameters.sampleFormat = paFloat32;
-        inputParameters.suggestedLatency = deviceInfo->defaultLowInputLatency;
-        inputParameters.hostApiSpecificStreamInfo = nullptr;
+    PaStreamParameters inputParameters;
+    inputParameters.device = (currentDeviceIndex_ >= 0) ? currentDeviceIndex_ : Pa_GetDefaultInputDevice();
+    inputParameters.channelCount = 1;
+    inputParameters.sampleFormat = paFloat32;
+    inputParameters.suggestedLatency = Pa_GetDeviceInfo(inputParameters.device)->defaultLowInputLatency;
+    inputParameters.hostApiSpecificStreamInfo = nullptr;
 
 #ifndef _WIN32
-        // Linux特定的音频流配置
-        PaAlsaStreamInfo* alsaStreamInfo = new PaAlsaStreamInfo;
-        alsaStreamInfo->size = sizeof(PaAlsaStreamInfo);
-        alsaStreamInfo->hostApiType = paALSA;
-        alsaStreamInfo->version = 1;
-        alsaStreamInfo->flags = paAlsaUseExplicitDevice;
-        alsaStreamInfo->deviceString = nullptr; // 使用默认设备
-        inputParameters.hostApiSpecificStreamInfo = alsaStreamInfo;
+    // Linux特定的音频流配置
+    PaAlsaStreamInfo* alsaStreamInfo = new PaAlsaStreamInfo;
+    alsaStreamInfo->size = sizeof(PaAlsaStreamInfo);
+    alsaStreamInfo->hostApiType = paALSA;
+    alsaStreamInfo->version = 1;
+    alsaStreamInfo->deviceString = nullptr; // 使用默认设备
+    inputParameters.hostApiSpecificStreamInfo = alsaStreamInfo;
 #endif
 
-        err = Pa_OpenStream(
-            &stream_,
-            &inputParameters,
-            nullptr,
-            16000,
-            512,
-            paClipOff,
-            paCallback,
-            this
-        );
+    err = Pa_OpenStream(
+        &stream_,
+        &inputParameters,
+        nullptr,
+        16000,
+        512,
+        paClipOff,
+        paCallback,
+        this
+    );
 
 #ifndef _WIN32
-        delete alsaStreamInfo;
+    delete alsaStreamInfo;
 #endif
-
-        if (err == paNoError) {
-            break;
-        }
-
-        std::cerr << "打开音频流失败 (尝试 " << (retryCount + 1) << "/" << maxRetries << "): " 
-                  << Pa_GetErrorText(err) << std::endl;
-        
-        // 等待一段时间后重试
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        retryCount++;
-    }
 
     if (err != paNoError) {
-        std::cerr << "无法打开音频流，已达到最大重试次数" << std::endl;
+        std::cerr << "错误: 无法打开音频流: " << Pa_GetErrorText(err) << std::endl;
         return false;
     }
 
-    // 启动音频流
     err = Pa_StartStream(stream_);
     if (err != paNoError) {
-        std::cerr << "启动音频流失败: " << Pa_GetErrorText(err) << std::endl;
+        std::cerr << "错误: 无法启动音频流: " << Pa_GetErrorText(err) << std::endl;
         Pa_CloseStream(stream_);
-        stream_ = nullptr;
         return false;
     }
 
@@ -350,13 +328,13 @@ int AudioCapture::paCallback(
             self->audioBuffer_.resize(framesPerBuffer);
         }
         
-        // 应用增益控制 (2.0倍增益)
-        const float gain = 2.0f;
+        // 应用增益控制
+        float gain = self->gain_;
         for (unsigned long i = 0; i < framesPerBuffer; ++i) {
             self->audioBuffer_[i] = in[i] * gain;
         }
         
-        // 调用回调函数，传递包含实际数据大小的视图
+        // 调用回调函数
         self->callback_(std::vector<float>(self->audioBuffer_.begin(), self->audioBuffer_.begin() + framesPerBuffer));
     }
 
