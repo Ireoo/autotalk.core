@@ -47,6 +47,7 @@ cd ../..
 # 构建 PortAudio
 echo "正在构建 PortAudio..."
 cd portaudio
+sed -i 's/cmake_minimum_required(VERSION 3.1.0)/cmake_minimum_required(VERSION 3.5.0)/g' CMakeLists.txt
 mkdir -p build
 cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release -DPA_BUILD_SHARED_LIBS=ON
@@ -104,8 +105,8 @@ fi
 echo "正在复制共享库文件..."
 
 # 复制PortAudio共享库
-if [ -f "portaudio/lib/.libs/libportaudio.so" ]; then
-    cp -f portaudio/lib/.libs/libportaudio.so* Release/
+if [ -f "portaudio/build/libportaudio.so" ]; then
+    cp -f portaudio/build/libportaudio.so* Release/
 else
     echo "错误: 找不到libportaudio.so"
     exit 1
