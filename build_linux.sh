@@ -136,4 +136,4 @@ echo "==== 构建完成 ===="
 echo "可执行文件位于 Release 目录中"
 
 # 运行程序
-./Release/autotalk --list 
+# ./Release/autotalk --list 
