@@ -25,6 +25,7 @@
 
 // Constants
 constexpr int SAMPLE_RATE = 16000;
+constexpr int SAMPLE_RATE_KONG = 0;
 constexpr int FRAME_SIZE = 512;
 constexpr int MAX_BUFFER_SIZE = SAMPLE_RATE * 30;   // 30 seconds of audio
 constexpr int AUDIO_CONTEXT_SIZE = SAMPLE_RATE * 1; // 3 seconds context
@@ -136,11 +137,11 @@ void processSpeechRecognition()
                 // 音频截取设置
                 wparams.offset_ms = 0;   // 从音频起始开始处理
                 wparams.duration_ms = 0; // 0 表示处理整个输入音频
-                wparams.audio_ctx = 128; // 保留的音频上下文长度，根据实际使用情况微调
+                wparams.audio_ctx = 0;   // 保留的音频上下文长度，根据实际使用情况微调
 
                 // 输出与 token 限制
                 wparams.max_len = 0;      // 0 表示不限制输出长度（或采用模型默认值）
-                wparams.max_tokens = 256; // 可根据语音内容复杂度适当增加
+                wparams.max_tokens = 128; // 可根据语音内容复杂度适当增加
 
                 // Token 时间戳记录
                 wparams.token_timestamps = false;
@@ -148,8 +149,8 @@ void processSpeechRecognition()
                 // 解码温度及相关阈值设置
                 wparams.thold_pt = 0.06f;       // token概率的阈值，可确保低概率输出被抑制
                 wparams.temperature = 0.0f;     // 温度设置为0，保证贪心解码的确定性
-                wparams.temperature_inc = 0.4f; // 不进行温度增量调整
-                wparams.entropy_thold = 2.4f;   // 熵阈值，过高可能导致更多噪声输出，过低可能过于保守
+                wparams.temperature_inc = 0.0f; // 不进行温度增量调整
+                wparams.entropy_thold = 2.6f;   // 熵阈值，过高可能导致更多噪声输出，过低可能过于保守
                 wparams.logprob_thold = -1.0f;  // 对数概率阈值，控制 token 输出的可靠性
                 wparams.no_speech_thold = 0.6f; // 无语音判定阈值，用于过滤纯背景噪声
 
@@ -164,15 +165,15 @@ void processSpeechRecognition()
                 auto timestamp = ss.str();
 
                 // 复制音频数据以避免异步访问问题
-                // std::vector<float> audio_copy;
-                // {
-                //     std::lock_guard<std::mutex> lock(bufferMutex);
-                //     audio_copy = audio_chunk;
-                // }
+                std::vector<float> audio_copy;
+                {
+                    std::lock_guard<std::mutex> lock(bufferMutex);
+                    audio_copy = audio_chunk;
+                }
 
-                std::vector<float>::const_iterator audio_end = audio_chunk.end();
+                // std::vector<float>::const_iterator audio_end = audio_copy.end();
 
-                if (whisper_full(ctx, wparams, audio_chunk.data(), audio_chunk.size()) == 0)
+                if (whisper_full(ctx, wparams, audio_copy.data(), audio_copy.size()) == 0)
                 {
                     const int n_segments = whisper_full_n_segments(ctx);
                     std::string recognized_text;
@@ -185,13 +186,18 @@ void processSpeechRecognition()
                         }
                     }
 
-                    if (std::regex_search(recognized_text, std::regex("^(謝謝大家|未经许可,不得翻唱或使用|字幕志愿者|谢谢大家|优优独播剧场——YoYo Television Series Exclusive|请不吝点赞 订阅 转发 打赏支持明镜与点点栏目|by bwd6|謝謝觀看|謝謝觀看|謝謝收看|\\()")))
+                    if (std::regex_search(recognized_text, std::regex("^(\\.)")))
                     {
 
                         if (running)
                         {
                             std::lock_guard<std::mutex> lock(bufferMutex);
-                            audio_chunk.erase(audio_chunk.begin(), audio_end);
+                            if (audio_chunk.size() >= audio_copy.size())
+                            {
+                                audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
+                            } else {
+                                audio_chunk.clear();
+                            }
                             CONSOLE_SCREEN_BUFFER_INFO csbi;
                             GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
                             int consoleWidth = csbi.dwSize.X;
@@ -227,15 +233,37 @@ void processSpeechRecognition()
                         SetConsoleCursorPosition(hConsole, newPos);
                         std::cout << "[" << timestamp << "]: " << recognized_text << std::flush;
 
-                        if (std::regex_search(recognized_text, std::regex("[\\.!?。！？~]$")))
+                        if (std::regex_search(recognized_text, std::regex("[\\.!?！？~]$")))
                         {
                             std::lock_guard<std::mutex> lock(bufferMutex);
-                            audio_chunk.erase(audio_chunk.begin(), audio_end);
+                            if (audio_chunk.size() >= audio_copy.size())
+                            {
+                                audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
+                            }
+                            else
+                            {
+                                audio_chunk.clear();
+                            }
                             std::cout << std::endl;
                         }
+                        else
+                        // 如果 recognized_text 里面有两个。
+                        if(std::regex_search(recognized_text, std::regex("[，！？].*。$"))) {
+                            std::lock_guard<std::mutex> lock(bufferMutex);
+                            if (audio_chunk.size() >= audio_copy.size())
+                            {
+                                audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
+                            }
+                            else
+                            {
+                                audio_chunk.clear();
+                            }
+                            std::cout << std::endl;
+                        }
+
                     }
 
-                    size_t keep_size = SAMPLE_RATE * 10;
+                    size_t keep_size = SAMPLE_RATE * 30;
                     if (audio_chunk.size() > keep_size)
                     {
                         std::lock_guard<std::mutex> lock(bufferMutex);
@@ -253,7 +281,7 @@ void processSpeechRecognition()
             }
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
 
@@ -282,7 +310,7 @@ void processAudioStream()
         }
         else
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
 }
