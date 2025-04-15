@@ -38,7 +38,7 @@ constexpr int MAX_BUFFER_SIZE = SAMPLE_RATE * 30;   // 30 seconds of audio
 constexpr int AUDIO_CONTEXT_SIZE = SAMPLE_RATE * 1; // 3 seconds context
 constexpr int MIN_AUDIO_SAMPLES = SAMPLE_RATE;      // 至少1秒的音频数据
 
-static const std::regex sentence_end_regex(R"([.!?。！？~ ])");
+// static const std::regex sentence_end_regex(R"([.!?。！？~])");
 
 // Global variables
 std::atomic<bool> running(true);
@@ -56,9 +56,16 @@ std::vector<float> audio_chunk;
 std::string confirmInfo;
 const int MAX_AUDIO_LENGTH = 10 * SAMPLE_RATE; // 最大音频长度（10秒）
 // 识别语音相同内容次数
-const int MAX_REPEAT_COUNT = 5;
+const int MAX_REPEAT_COUNT = 1;
 int REPEAT_COUNT = 0;
 std::string REPEAT_TEXT;
+
+// 添加音频处理状态锁，用于控制音频处理状态
+std::mutex audioStateMutex;
+std::condition_variable audioStateCV;
+bool processingAudio = false;  // 标记是否正在处理音频
+
+std::vector<float> pendingAudio;  // 存储等待处理的音频数据
 
 // Signal handler for Ctrl+C
 void signalHandler(int signal)
@@ -120,8 +127,14 @@ void processSpeechRecognition()
 {
     while (running)
     {
-        if (audio_chunk.size() >= SAMPLE_RATE)
+        // 获取音频处理锁
+        std::unique_lock<std::mutex> stateLock(audioStateMutex);
+        
+        if (audio_chunk.size() >= SAMPLE_RATE && !processingAudio)
         {
+            processingAudio = true;  // 标记开始处理音频
+            stateLock.unlock();  // 解锁以允许其他线程继续工作
+            
             try
             {
                 whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
@@ -143,8 +156,8 @@ void processSpeechRecognition()
                 wparams.audio_ctx = 768; // 保留的音频上下文长度，根据实际使用情况微调
 
                 // 输出与 token 限制
-                wparams.max_len = 0;     // 0 表示不限制输出长度（或采用模型默认值）
-                wparams.max_tokens = 64; // 可根据语音内容复杂度适当增加
+                wparams.max_len = 0;      // 0 表示不限制输出长度（或采用模型默认值）
+                wparams.max_tokens = 32; // 可根据语音内容复杂度适当增加
 
                 // Token 时间戳记录
                 wparams.token_timestamps = false;
@@ -153,13 +166,20 @@ void processSpeechRecognition()
                 wparams.thold_pt = 0.01f;       // token概率的阈值，可确保低概率输出被抑制
                 wparams.temperature = 0.0f;     // 温度设置为0，保证贪心解码的确定性
                 wparams.temperature_inc = 0.0f; // 不进行温度增量调整
-                wparams.entropy_thold = 2.6f;   // 熵阈值，过高可能导致更多噪声输出，过低可能过于保守
+                wparams.entropy_thold = 2.0f;   // 调整熵阈值，提高识别质量
                 wparams.logprob_thold = -1.0f;  // 对数概率阈值，控制 token 输出的可靠性
                 wparams.no_speech_thold = 0.6f; // 无语音判定阈值，用于过滤纯背景噪声
 
                 // 上下文保持：适用于连续语音识别场景
                 wparams.no_context = true;
 
+                // 复制当前音频数据进行处理，避免在处理过程中被修改
+                std::vector<float> processing_audio;
+                {
+                    std::lock_guard<std::mutex> lock(bufferMutex);
+                    processing_audio = audio_chunk;
+                }
+                
                 // 获取当前时间戳
                 auto now = std::chrono::system_clock::now();
                 auto now_time = std::chrono::system_clock::to_time_t(now);
@@ -167,16 +187,7 @@ void processSpeechRecognition()
                 ss << std::put_time(std::localtime(&now_time), "%Y-%m-%d-%H-%M-%S");
                 auto timestamp = ss.str();
 
-                // 复制音频数据以避免异步访问问题
-                // std::vector<float> audio_copy;
-                // {
-                //     std::lock_guard<std::mutex> lock(bufferMutex);
-                //     audio_copy = audio_chunk;
-                // }
-
-                std::vector<float>::const_iterator audio_end = audio_chunk.end();
-
-                if (whisper_full(ctx, wparams, audio_chunk.data(), audio_chunk.size()) == 0)
+                if (whisper_full(ctx, wparams, processing_audio.data(), processing_audio.size()) == 0)
                 {
                     const int n_segments = whisper_full_n_segments(ctx);
                     std::string recognized_text;
@@ -189,21 +200,19 @@ void processSpeechRecognition()
                         }
                     }
 
-                    // if (std::regex_search(recognized_text, std::regex("^(謝謝大家|謝謝觀看|謝謝觀看|謝謝收看|\\()")))
-                    // {
-                    //     // std::lock_guard<std::mutex> lock(bufferMutex);
-                    //     // audio_chunk.erase(audio_chunk.begin(), audio_chunk.end());
-                    //     if (running)
-                    //     {
-                    //         // CONSOLE_SCREEN_BUFFER_INFO csbi;
-                    //         // GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-                    //         // int consoleWidth = csbi.dwSize.X;
-                    //         // std::cout << "\r" << std::string(consoleWidth, ' ') << "\r[" << timestamp << "]: 识别中..." << std::flush;
-                    //     }
-                    // }
-                    // else
-                    // {
-                    if (running)
+                    if (std::regex_search(recognized_text, std::regex("^(謝謝大家|謝謝觀看|謝謝觀看|謝謝收看|\\()")))
+                    {
+                        // std::lock_guard<std::mutex> lock(bufferMutex);
+                        // audio_chunk.erase(audio_chunk.begin(), audio_chunk.end());
+                        if (running)
+                        {
+                            // CONSOLE_SCREEN_BUFFER_INFO csbi;
+                            // GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+                            // int consoleWidth = csbi.dwSize.X;
+                            // std::cout << "\r" << std::string(consoleWidth, ' ') << "\r[" << timestamp << "]: 识别中..." << std::flush;
+                        }
+                    }
+                    else if (running)
                     {
                         // 获取控制台句柄及宽度
                         HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -231,32 +240,37 @@ void processSpeechRecognition()
                         COORD newPos = {0, (SHORT)startRow};
                         SetConsoleCursorPosition(hConsole, newPos);
                         std::cout << "[" << timestamp << "]: " << recognized_text << std::flush;
-                    }
-                    // }
 
-                    if (REPEAT_TEXT == recognized_text)
-                    {
-                        REPEAT_COUNT++;
+                        if (REPEAT_TEXT == recognized_text)
+                        {
+                            REPEAT_COUNT++;
+                        }
+                        else
+                        {
+                            REPEAT_COUNT = 0;
+                        }
+                        REPEAT_TEXT = recognized_text;
                     }
-                    else
-                    {
-                        REPEAT_COUNT = 0;
-                    }
-                    REPEAT_TEXT = recognized_text;
 
                     if (REPEAT_COUNT >= MAX_REPEAT_COUNT)
                     {
                         REPEAT_COUNT = 0;
                         REPEAT_TEXT = "";
-                        std::lock_guard<std::mutex> lock(bufferMutex);
-                        audio_chunk.erase(audio_chunk.begin(), audio_end);
+
+                        // 安全地清除已处理的音频数据
+                        {
+                            std::lock_guard<std::mutex> lock(bufferMutex);
+                            audio_chunk.clear();
+                        }
                         std::cout << std::endl;
                     }
-                    else if (!recognized_text.empty() &&
-                             std::regex_search(recognized_text, sentence_end_regex))
+                    else if (std::regex_search(recognized_text, std::regex("[\\.!?。！？~]$")))
                     {
-                        std::lock_guard<std::mutex> lock(bufferMutex);
-                        audio_chunk.erase(audio_chunk.begin(), audio_end);
+                        // 安全地清除已处理的音频数据
+                        {
+                            std::lock_guard<std::mutex> lock(bufferMutex);
+                            audio_chunk.clear();
+                        }
                         std::cout << std::endl;
                     }
                 }
@@ -269,16 +283,30 @@ void processSpeechRecognition()
             {
                 std::cerr << "语音识别处理发生未知错误" << std::endl;
             }
+            
+            // 处理完成后，重置处理状态并通知其他线程
+            {
+                std::lock_guard<std::mutex> lock(audioStateMutex);
+                processingAudio = false;
+            }
+            audioStateCV.notify_all();
+        }
+        else
+        {
+            // 如果没有足够的音频数据或者正在处理中，等待一段时间
+            stateLock.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
-        size_t keep_size = SAMPLE_RATE * 20;
-        if (audio_chunk.size() > keep_size)
+        // 限制音频缓冲区大小
+        size_t keep_size = SAMPLE_RATE * 10;
         {
             std::lock_guard<std::mutex> lock(bufferMutex);
-            audio_chunk.erase(audio_chunk.begin(), audio_chunk.end() - keep_size);
+            if (audio_chunk.size() > keep_size)
+            {
+                audio_chunk.erase(audio_chunk.begin(), audio_chunk.end() - keep_size);
+            }
         }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
 
@@ -291,9 +319,17 @@ void processAudioStream()
 
         if (audioQueue.pop(currentAudio))
         {
-            std::lock_guard<std::mutex> lock(bufferMutex);
-            audio_chunk.insert(audio_chunk.end(), currentAudio.begin(), currentAudio.end());
-        } else {
+            // 等待确保没有正在进行的音频处理
+            {
+                std::unique_lock<std::mutex> lock(audioStateMutex);
+                
+                // 将新音频添加到缓冲区
+                std::lock_guard<std::mutex> bufferLock(bufferMutex);
+                audio_chunk.insert(audio_chunk.end(), currentAudio.begin(), currentAudio.end());
+            }
+        }
+        else
+        {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
