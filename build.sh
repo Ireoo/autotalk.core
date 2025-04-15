@@ -59,7 +59,7 @@ if [[ "$OSTYPE" == "linux-gnu" || "$OSTYPE" == "darwin" || "$OSTYPE" == "darwin2
 elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
     mkdir -p build
     cd build
-    cmake -G "Visual Studio 17 2022" -A x64 -DPA_BUILD_SHARED=ON ..
+    cmake -G "Visual Studio 17 2022" -A x64 -DPA_BUILD_SHARED=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..
     cmake --build . --config Release
     cd ..
 fi
@@ -86,6 +86,7 @@ cmake -DCMAKE_BUILD_TYPE=Release \
       -DBOOST_LIBRARYDIR="${BOOST_LIBRARYDIR}" \
       -DPortAudio_DIR="$(pwd)/../portaudio/install/lib/cmake/portaudio" \
       -DCMAKE_PREFIX_PATH="$(pwd)/../portaudio/install" \
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
       ..
 
 cmake --build . --config Release
