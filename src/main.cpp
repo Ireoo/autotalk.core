@@ -4,6 +4,7 @@
 #include <string>
 #include <thread>
 #include <mutex>
+#include <shared_mutex>
 #include <atomic>
 #include <signal.h>
 #include <cstring>
@@ -16,7 +17,6 @@
 #include <iomanip>
 #include <regex>
 #include <sstream>
-#include <boost/lockfree/spsc_queue.hpp>
 #include "../third_party/libsndfile/include/sndfile.h"
 #ifdef _WIN32
 #include <Windows.h>
@@ -40,19 +40,113 @@ constexpr int MIN_AUDIO_SAMPLES = SAMPLE_RATE;      // 至少1秒的音频数据
 
 // static const std::regex sentence_end_regex(R"([.!?。！？~])");
 
+// 环形缓冲区实现
+class CircularBuffer {
+private:
+    std::vector<std::vector<float>> buffer;
+    std::atomic<size_t> write_pos{0};
+    std::atomic<size_t> read_pos{0};
+    const size_t capacity;
+    std::mutex mutex;  // 用于保护缓冲区大小检查
+
+public:
+    explicit CircularBuffer(size_t size) : buffer(size), capacity(size) {}
+
+    bool push(const std::vector<float>& data) {
+        size_t current_write = write_pos.load(std::memory_order_acquire);
+        size_t next_write = (current_write + 1) % capacity;
+        
+        // 检查缓冲区是否已满
+        if (next_write == read_pos.load(std::memory_order_acquire)) {
+            return false;
+        }
+
+        buffer[current_write] = data;
+        write_pos.store(next_write, std::memory_order_release);
+        return true;
+    }
+
+    bool pop(std::vector<float>& data) {
+        size_t current_read = read_pos.load(std::memory_order_acquire);
+        
+        // 检查缓冲区是否为空
+        if (current_read == write_pos.load(std::memory_order_acquire)) {
+            return false;
+        }
+
+        data = buffer[current_read];
+        read_pos.store((current_read + 1) % capacity, std::memory_order_release);
+        return true;
+    }
+
+    size_t size() const {
+        size_t w = write_pos.load(std::memory_order_acquire);
+        size_t r = read_pos.load(std::memory_order_acquire);
+        return (w >= r) ? (w - r) : (capacity - r + w);
+    }
+};
+
+// 双缓冲实现
+class DoubleBuffer {
+private:
+    std::vector<float> buffers[2];
+    std::atomic<int> write_index{0};
+    std::atomic<bool> processing{false};
+    std::mutex mutex;
+
+public:
+    DoubleBuffer() {
+        buffers[0].reserve(MAX_BUFFER_SIZE);
+        buffers[1].reserve(MAX_BUFFER_SIZE);
+    }
+
+    void append(const std::vector<float>& data) {
+        int current_write = write_index.load(std::memory_order_acquire);
+        std::lock_guard<std::mutex> lock(mutex);
+        buffers[current_write].insert(buffers[current_write].end(), data.begin(), data.end());
+    }
+
+    bool startProcessing() {
+        bool expected = false;
+        if (processing.compare_exchange_strong(expected, true, std::memory_order_acq_rel)) {
+            int current_write = write_index.load(std::memory_order_acquire);
+            write_index.store(1 - current_write, std::memory_order_release);
+            return true;
+        }
+        return false;
+    }
+
+    void endProcessing() {
+        processing.store(false, std::memory_order_release);
+    }
+
+    std::vector<float>& getProcessingBuffer() {
+        int current_write = write_index.load(std::memory_order_acquire);
+        return buffers[1 - current_write];
+    }
+
+    void clearProcessingBuffer() {
+        int current_write = write_index.load(std::memory_order_acquire);
+        buffers[1 - current_write].clear();
+    }
+
+    size_t size() const {
+        int current_write = write_index.load(std::memory_order_acquire);
+        return buffers[current_write].size();
+    }
+};
+
 // Global variables
 std::atomic<bool> running(true);
-std::deque<float> audioBuffer;
-std::mutex bufferMutex;
+DoubleBuffer audioBuffer;  // 使用双缓冲替代原来的缓冲区
 whisper_context *ctx = nullptr;
 SystemMonitor *systemMonitor = nullptr;
 
-// 使用无锁队列替代原有的互斥锁保护队列
+// 使用环形缓冲区替代队列
 const size_t AUDIO_QUEUE_SIZE = 1024; // 队列大小
-boost::lockfree::spsc_queue<std::vector<float>, boost::lockfree::capacity<AUDIO_QUEUE_SIZE>> audioQueue;
+CircularBuffer audioQueue(AUDIO_QUEUE_SIZE);
 
 // 音频处理相关的全局变量
-std::vector<float> audio_chunk;
 std::string confirmInfo;
 const int MAX_AUDIO_LENGTH = 10 * SAMPLE_RATE; // 最大音频长度（10秒）
 // 识别语音相同内容次数
@@ -60,9 +154,9 @@ const int MAX_REPEAT_COUNT = 1;
 int REPEAT_COUNT = 0;
 std::string REPEAT_TEXT;
 
-// 添加音频处理状态锁，用于控制音频处理状态
-std::mutex audioStateMutex;
-std::condition_variable audioStateCV;
+// 添加音频处理状态锁，使用读写锁
+std::shared_mutex audioStateMutex;  // 使用读写锁，因为读取操作频繁而写入操作较少
+std::condition_variable_any audioStateCV;  // 使用any版本的condition_variable以支持读写锁
 bool processingAudio = false;  // 标记是否正在处理音频
 
 std::vector<float> pendingAudio;  // 存储等待处理的音频数据
@@ -80,10 +174,7 @@ void signalHandler(int signal)
 // Audio data processing callback
 void processAudio(const std::vector<float> &buffer)
 {
-    // 使用无锁队列的push方法
-    while (!audioQueue.push(buffer))
-    {
-        // 如果队列已满，等待一小段时间
+    while (!audioQueue.push(buffer)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
@@ -127,14 +218,8 @@ void processSpeechRecognition()
 {
     while (running)
     {
-        // 获取音频处理锁
-        std::unique_lock<std::mutex> stateLock(audioStateMutex);
-        
-        if (audio_chunk.size() >= SAMPLE_RATE && !processingAudio)
+        if (audioBuffer.size() >= SAMPLE_RATE && audioBuffer.startProcessing())
         {
-            processingAudio = true;  // 标记开始处理音频
-            stateLock.unlock();  // 解锁以允许其他线程继续工作
-            
             try
             {
                 whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
@@ -153,7 +238,7 @@ void processSpeechRecognition()
                 // 音频截取设置
                 wparams.offset_ms = 0;   // 从音频起始开始处理
                 wparams.duration_ms = 0; // 0 表示处理整个输入音频
-                wparams.audio_ctx = 768; // 保留的音频上下文长度，根据实际使用情况微调
+                wparams.audio_ctx = 0; // 保留的音频上下文长度，根据实际使用情况微调
 
                 // 输出与 token 限制
                 wparams.max_len = 0;      // 0 表示不限制输出长度（或采用模型默认值）
@@ -166,19 +251,15 @@ void processSpeechRecognition()
                 wparams.thold_pt = 0.01f;       // token概率的阈值，可确保低概率输出被抑制
                 wparams.temperature = 0.0f;     // 温度设置为0，保证贪心解码的确定性
                 wparams.temperature_inc = 0.0f; // 不进行温度增量调整
-                wparams.entropy_thold = 2.0f;   // 调整熵阈值，提高识别质量
+                wparams.entropy_thold = 1.0f;   // 调整熵阈值，提高识别质量
                 wparams.logprob_thold = -1.0f;  // 对数概率阈值，控制 token 输出的可靠性
                 wparams.no_speech_thold = 0.6f; // 无语音判定阈值，用于过滤纯背景噪声
 
                 // 上下文保持：适用于连续语音识别场景
                 wparams.no_context = true;
 
-                // 复制当前音频数据进行处理，避免在处理过程中被修改
-                std::vector<float> processing_audio;
-                {
-                    std::lock_guard<std::mutex> lock(bufferMutex);
-                    processing_audio = audio_chunk;
-                }
+                // 获取处理缓冲区
+                std::vector<float>& processing_audio = audioBuffer.getProcessingBuffer();
                 
                 // 获取当前时间戳
                 auto now = std::chrono::system_clock::now();
@@ -200,10 +281,8 @@ void processSpeechRecognition()
                         }
                     }
 
-                    if (std::regex_search(recognized_text, std::regex("^(謝謝大家|謝謝觀看|謝謝觀看|謝謝收看|\\()")))
+                    if (std::regex_search(recognized_text, std::regex("^(謝謝大家|谢谢大家|謝謝觀看|謝謝觀看|謝謝收看|by bwd6|\\()")))
                     {
-                        // std::lock_guard<std::mutex> lock(bufferMutex);
-                        // audio_chunk.erase(audio_chunk.begin(), audio_chunk.end());
                         if (running)
                         {
                             // CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -256,21 +335,12 @@ void processSpeechRecognition()
                     {
                         REPEAT_COUNT = 0;
                         REPEAT_TEXT = "";
-
-                        // 安全地清除已处理的音频数据
-                        {
-                            std::lock_guard<std::mutex> lock(bufferMutex);
-                            audio_chunk.clear();
-                        }
+                        audioBuffer.clearProcessingBuffer();
                         std::cout << std::endl;
                     }
-                    else if (std::regex_search(recognized_text, std::regex("[\\.!?。！？~]$")))
+                    else if (std::regex_search(recognized_text, std::regex("[\\.!?。！？~]")))
                     {
-                        // 安全地清除已处理的音频数据
-                        {
-                            std::lock_guard<std::mutex> lock(bufferMutex);
-                            audio_chunk.clear();
-                        }
+                        audioBuffer.clearProcessingBuffer();
                         std::cout << std::endl;
                     }
                 }
@@ -284,28 +354,11 @@ void processSpeechRecognition()
                 std::cerr << "语音识别处理发生未知错误" << std::endl;
             }
             
-            // 处理完成后，重置处理状态并通知其他线程
-            {
-                std::lock_guard<std::mutex> lock(audioStateMutex);
-                processingAudio = false;
-            }
-            audioStateCV.notify_all();
+            audioBuffer.endProcessing();
         }
         else
         {
-            // 如果没有足够的音频数据或者正在处理中，等待一段时间
-            stateLock.unlock();
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-
-        // 限制音频缓冲区大小
-        size_t keep_size = SAMPLE_RATE * 10;
-        {
-            std::lock_guard<std::mutex> lock(bufferMutex);
-            if (audio_chunk.size() > keep_size)
-            {
-                audio_chunk.erase(audio_chunk.begin(), audio_chunk.end() - keep_size);
-            }
         }
     }
 }
@@ -316,20 +369,9 @@ void processAudioStream()
     while (running)
     {
         std::vector<float> currentAudio;
-
-        if (audioQueue.pop(currentAudio))
-        {
-            // 等待确保没有正在进行的音频处理
-            {
-                std::unique_lock<std::mutex> lock(audioStateMutex);
-                
-                // 将新音频添加到缓冲区
-                std::lock_guard<std::mutex> bufferLock(bufferMutex);
-                audio_chunk.insert(audio_chunk.end(), currentAudio.begin(), currentAudio.end());
-            }
-        }
-        else
-        {
+        if (audioQueue.pop(currentAudio)) {
+            audioBuffer.append(currentAudio);
+        } else {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }

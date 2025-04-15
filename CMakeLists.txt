@@ -8,14 +8,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 设置vcpkg工具链
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
 
-# 设置Boost路径
-set(BOOST_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/boost")
-set(BOOST_INCLUDEDIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/install/include")
-set(BOOST_LIBRARYDIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/install/lib")
-
-# 查找Boost库
-find_package(Boost REQUIRED COMPONENTS atomic thread system filesystem regex date_time chrono)
-
 # 设置构建共享库
 set(BUILD_SHARED_LIBS ON)
 
@@ -76,13 +68,6 @@ target_link_libraries(autotalk PRIVATE
     portaudio
     whisper
     sndfile
-    Boost::atomic
-    Boost::thread
-    Boost::system
-    Boost::filesystem
-    Boost::regex
-    Boost::date_time
-    Boost::chrono
 )
 
 # Windows特定链接
