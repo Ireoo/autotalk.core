@@ -3,7 +3,52 @@
 # 设置错误时退出
 set -e
 
+# 添加命令行参数处理
+USE_GPU=0
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --gpu)
+      USE_GPU=1
+      shift
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
 echo "==== 开始构建项目 ===="
+if [ "$USE_GPU" -eq 1 ]; then
+  echo "启用GPU支持构建"
+  
+  # 检查CUDA是否安装
+  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+    if [ ! -d "/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA" ]; then
+      echo "错误: 未找到CUDA安装，请先安装CUDA工具包"
+      exit 1
+    fi
+    
+    # 找到最新版本的CUDA
+    CUDA_PATH=$(ls -d "/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/"* | grep -E "v[0-9]+\.[0-9]+" | sort -r | head -n 1)
+    if [ -z "$CUDA_PATH" ]; then
+      echo "错误: 无法确定CUDA版本"
+      exit 1
+    fi
+    
+    echo "找到CUDA安装: $CUDA_PATH"
+    export PATH="$CUDA_PATH/bin:$PATH"
+    export CUDA_HOME="$CUDA_PATH"
+    export CUDA_PATH="$CUDA_PATH"
+  else
+    # Linux/MacOS检查
+    if ! command -v nvcc &> /dev/null; then
+      echo "错误: 未找到nvcc，请确保CUDA工具包已安装"
+      exit 1
+    fi
+  fi
+else
+  echo "使用CPU构建"
+fi
 
 # 显示当前工作目录
 echo "当前工作目录: $(pwd)"
@@ -79,15 +124,23 @@ echo "BOOST_ROOT: ${BOOST_ROOT}"
 echo "BOOST_INCLUDEDIR: ${BOOST_INCLUDEDIR}"
 echo "BOOST_LIBRARYDIR: ${BOOST_LIBRARYDIR}"
 
-cmake -DCMAKE_BUILD_TYPE=Release \
+# 准备CMake命令并根据GPU选项添加相关参数
+CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
       -DBUILD_SHARED_LIBS=ON \
-      -DBOOST_ROOT="${BOOST_ROOT}" \
-      -DBOOST_INCLUDEDIR="${BOOST_INCLUDEDIR}" \
-      -DBOOST_LIBRARYDIR="${BOOST_LIBRARYDIR}" \
-      -DPortAudio_DIR="$(pwd)/../portaudio/install/lib/cmake/portaudio" \
-      -DCMAKE_PREFIX_PATH="$(pwd)/../portaudio/install" \
-      -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-      ..
+      -DBOOST_ROOT=\"${BOOST_ROOT}\" \
+      -DBOOST_INCLUDEDIR=\"${BOOST_INCLUDEDIR}\" \
+      -DBOOST_LIBRARYDIR=\"${BOOST_LIBRARYDIR}\" \
+      -DPortAudio_DIR=\"$(pwd)/../portaudio/install/lib/cmake/portaudio\" \
+      -DCMAKE_PREFIX_PATH=\"$(pwd)/../portaudio/install\" \
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+
+# 添加GPU选项
+if [ "$USE_GPU" -eq 1 ]; then
+    CMAKE_ARGS="$CMAKE_ARGS -DGGML_CUDA=ON -DUSE_GPU=ON -DCMAKE_CUDA_ARCHITECTURES=all"
+fi
+
+# 执行CMake命令
+cmake $CMAKE_ARGS ..
 
 cmake --build . --config Release
 
@@ -159,6 +212,11 @@ if [ -f "build/bin/Release/whisper.dll" ]; then
     cp -f build/bin/Release/ggml.dll Release/
     cp -f build/bin/Release/ggml-cpu.dll Release/
     cp -f build/bin/Release/ggml-base.dll Release/
+    
+    # 如果启用GPU，复制相关DLL
+    if [ "$USE_GPU" -eq 1 ]; then
+        cp -f build/bin/Release/ggml-cuda.dll Release/ 2>/dev/null || echo "警告: ggml-cuda.dll不存在"
+    fi
 else
     echo "错误: 找不到whisper.dll"
     exit 1
@@ -166,7 +224,12 @@ fi
 
 echo "构建完成！"
 
-echo "==== 构建完成 ===="
-echo "可执行文件位于 Release 目录中"# 运行程序
+if [ "$USE_GPU" -eq 1 ]; then
+    echo "==== GPU版本构建完成 ===="
+else
+    echo "==== CPU版本构建完成 ===="
+fi
+echo "可执行文件位于 Release 目录中"
 
+# 运行程序
 ./Release/autotalk.exe --list
