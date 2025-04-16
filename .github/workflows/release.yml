@@ -26,43 +26,101 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential git
-        wget https://github.com/Kitware/CMake/releases/download/v3.29.2/cmake-3.29.2-linux-x86_64.sh
-        chmod +x cmake-3.29.2-linux-x86_64.sh
-        sudo ./cmake-3.29.2-linux-x86_64.sh --skip-license --prefix=/usr/local
+        sudo apt-get install -y build-essential git cmake
 
-    # - name: Install dependencies (macOS)
-    #   if: matrix.os == 'macos-latest'
-    #   run: |
-    #     brew install cmake@3.29.2
+    - name: Install dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install cmake
     #     brew link --force cmake@3.29.2
 
-    # - name: Install CMake (Windows)
-    #   if: matrix.os == 'windows-latest'
-    #   run: |
-    #     choco install cmake --version=3.29.2 --installargs 'ADD_CMAKE_TO_PATH=System'
-
-    - name: Build Project
-      run: |
-        bash build.sh
-
-    - name: Package files (Windows)
+    - name: Install CMake (Windows)
       if: matrix.os == 'windows-latest'
       run: |
+        choco install cmake
+
+    - name: Install Cuda Toolkit 12.2.0
+      if: matrix.os == 'windows-latest'
+      run: |
+        $CUDA_VERSION = '12.2.0'
+        $CUDA_TOOLKIT_DIR = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$CUDA_VERSION"
+        $CUDA_DOWNLOAD = "https://developer.download.nvidia.com/compute/cuda/redist"
+
+        # Components versions
+        $CUDART_VER   = "12.2.140"
+        $NVCC_VER     = "12.2.140"
+        $NVRTC_VER    = "12.2.140"
+        $CUBLAS_VER   = "12.2.5.6"
+        $NVTX_VER     = "12.2.140"
+        $PROFILER_VER = "12.2.140"
+        $VS_VER       = "12.2.140"
+        $NVPROF_VER   = "12.2.142"
+        $CCCL_VER     = "12.2.140"
+
+        # Create the directory where the CUDA Toolkit will be installed
+        mkdir -p $CUDA_TOOLKIT_DIR
+
+        # Install unzip to extract the downloaded files
+        choco install unzip -y
+
+        # Download all the required components
+        curl -O "$CUDA_DOWNLOAD/cuda_cudart/windows-x86_64/cuda_cudart-windows-x86_64-${CUDART_VER}-archive.zip"
+        curl -O "$CUDA_DOWNLOAD/cuda_nvcc/windows-x86_64/cuda_nvcc-windows-x86_64-${NVCC_VER}-archive.zip"
+        curl -O "$CUDA_DOWNLOAD/cuda_nvrtc/windows-x86_64/cuda_nvrtc-windows-x86_64-${NVRTC_VER}-archive.zip"
+        curl -O "$CUDA_DOWNLOAD/libcublas/windows-x86_64/libcublas-windows-x86_64-${CUBLAS_VER}-archive.zip"
+        curl -O "$CUDA_DOWNLOAD/cuda_nvtx/windows-x86_64/cuda_nvtx-windows-x86_64-${NVTX_VER}-archive.zip"
+        curl -O "$CUDA_DOWNLOAD/cuda_profiler_api/windows-x86_64/cuda_profiler_api-windows-x86_64-${PROFILER_VER}-archive.zip"
+        curl -O "$CUDA_DOWNLOAD/visual_studio_integration/windows-x86_64/visual_studio_integration-windows-x86_64-${VS_VER}-archive.zip"
+        curl -O "$CUDA_DOWNLOAD/cuda_nvprof/windows-x86_64/cuda_nvprof-windows-x86_64-${NVPROF_VER}-archive.zip"
+        curl -O "$CUDA_DOWNLOAD/cuda_cccl/windows-x86_64/cuda_cccl-windows-x86_64-${CCCL_VER}-archive.zip"
+
+        # Extract all the downloaded files to the CUDA Toolkit directory
+        unzip -q '*.zip' -d $CUDA_TOOLKIT_DIR
+
+        # Copy all the extracted files to the main CUDA Toolkit directory
+        xcopy "$CUDA_TOOLKIT_DIR\cuda_cudart-windows-x86_64-${CUDART_VER}-archive\*" "$CUDA_TOOLKIT_DIR" /E /I /H /Y
+        xcopy "$CUDA_TOOLKIT_DIR\cuda_nvcc-windows-x86_64-${NVCC_VER}-archive\*"     "$CUDA_TOOLKIT_DIR" /E /I /H /Y
+        xcopy "$CUDA_TOOLKIT_DIR\cuda_nvrtc-windows-x86_64-${NVRTC_VER}-archive\*"   "$CUDA_TOOLKIT_DIR" /E /I /H /Y
+        xcopy "$CUDA_TOOLKIT_DIR\libcublas-windows-x86_64-${CUBLAS_VER}-archive\*"   "$CUDA_TOOLKIT_DIR" /E /I /H /Y
+        xcopy "$CUDA_TOOLKIT_DIR\cuda_nvtx-windows-x86_64-${NVTX_VER}-archive\*"     "$CUDA_TOOLKIT_DIR" /E /I /H /Y
+        xcopy "$CUDA_TOOLKIT_DIR\cuda_nvprof-windows-x86_64-${NVPROF_VER}-archive\*" "$CUDA_TOOLKIT_DIR" /E /I /H /Y
+        xcopy "$CUDA_TOOLKIT_DIR\cuda_cccl-windows-x86_64-${CCCL_VER}-archive\*" "$CUDA_TOOLKIT_DIR" /E /I /H /Y
+        xcopy "$CUDA_TOOLKIT_DIR\cuda_profiler_api-windows-x86_64-${PROFILER_VER}-archive\*" "$CUDA_TOOLKIT_DIR" /E /I /H /Y
+        xcopy "$CUDA_TOOLKIT_DIR\visual_studio_integration-windows-x86_64-${VS_VER}-archive\*" "$CUDA_TOOLKIT_DIR" /E /I /H /Y
+
+        # Visual Studio integration
+        xcopy "$CUDA_TOOLKIT_DIR\visual_studio_integration-windows-x86_64-${VS_VER}-archive\visual_studio_integration\MSBuildExtensions\*" "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Microsoft\VC\v160\BuildCustomizations" /E /I /H /Y
+
+        # Set environment variables
+        echo "$CUDA_TOOLKIT_DIR\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        echo "$CUDA_TOOLKIT_DIR\libnvvp" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        echo "CUDA_PATH=$CUDA_TOOLKIT_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        echo "CUDA_PATH_V12_2=$CUDA_TOOLKIT_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+    - name: Build Project (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        bash build.sh
         cd Release
-        Compress-Archive -Path * -DestinationPath ../autotalk-windows.zip
+        Compress-Archive -Path * -DestinationPath ../autotalk-windows-cpu.zip
+        cd ..
+        bash build.sh --gpu
+        cd Release
+        Compress-Archive -Path * -DestinationPath ../autotalk-windows-gpu.zip
         cd ..
 
-    - name: Package files (Linux)
+    - name: Build Project (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
+        bash build.sh
         cd Release
         tar -czvf ../autotalk-linux.tar.gz .
         cd ..
 
-    - name: Package files (macOS)
+    - name: Build Project (macOS)
       if: matrix.os == 'macos-latest'
       run: |
+        bash build.sh
         cd Release
         tar -czvf ../autotalk-macos.tar.gz .
         cd ..
