@@ -39,23 +39,23 @@ jobs:
       run: |
         choco install cmake
 
-    - name: Install Cuda Toolkit 12.2.0
+    - name: Install Cuda Toolkit 12.6.3
       if: matrix.os == 'windows-latest'
       run: |
-        $CUDA_VERSION = '12.2.0'
+        $CUDA_VERSION = '12.6.3'
         $CUDA_TOOLKIT_DIR = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$CUDA_VERSION"
         $CUDA_DOWNLOAD = "https://developer.download.nvidia.com/compute/cuda/redist"
 
         # Components versions
-        $CUDART_VER   = "12.2.140"
-        $NVCC_VER     = "12.2.140"
-        $NVRTC_VER    = "12.2.140"
-        $CUBLAS_VER   = "12.2.5.6"
-        $NVTX_VER     = "12.2.140"
-        $PROFILER_VER = "12.2.140"
-        $VS_VER       = "12.2.140"
-        $NVPROF_VER   = "12.2.142"
-        $CCCL_VER     = "12.2.140"
+        $CUDART_VER   = "12.6.77"
+        $NVCC_VER     = "12.6.77"
+        $NVRTC_VER    = "12.6.77"
+        $CUBLAS_VER   = "12.6.4.1"
+        $NVTX_VER     = "12.6.77"
+        $PROFILER_VER = "12.6.77"
+        $VS_VER       = "12.6.77"
+        $NVPROF_VER   = "12.6.80"
+        $CCCL_VER     = "12.6.77"
 
         # Create the directory where the CUDA Toolkit will be installed
         mkdir -p $CUDA_TOOLKIT_DIR
