@@ -84,7 +84,8 @@ jobs:
         
         # 使用source加载环境变量并构建
         Remove-Item -Recurse -Force build, Release -ErrorAction SilentlyContinue
-        bash -c "source ./cuda_env.sh && chmod +x build.sh && ./build.sh --gpu"
+        bash ./cuda_env.sh
+        bash ./build.sh --gpu
         
         cd Release
         Compress-Archive -Path * -DestinationPath ../autotalk-windows-gpu.zip
