@@ -79,8 +79,8 @@ jobs:
     - name: Build Project GPU (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        rm -rf build
-        rm -rf Release
+        bash rm -rf build
+        bash rm -rf Release
         bash build.sh --gpu
         cd Release
         Compress-Archive -Path * -DestinationPath ../autotalk-windows-gpu.zip
