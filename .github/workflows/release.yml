@@ -32,71 +32,33 @@ jobs:
       if: matrix.os == 'macos-latest'
       run: |
         brew install cmake
-    #     brew link --force cmake@3.29.2
 
     - name: Install CMake (Windows)
       if: matrix.os == 'windows-latest'
       run: |
         choco install cmake
 
-    - name: Install Cuda Toolkit 12.6.3
+    - name: Install CUDA Toolkit (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: Jimver/cuda-toolkit@v0.2.11
+      with:
+        cuda: '12.3.2'
+        method: 'network'
+        sub-packages: '["nvcc", "cudart", "cublas", "nvrtc", "nvtx", "visual_studio_integration"]'
+
+    - name: Verify CUDA Installation
       if: matrix.os == 'windows-latest'
       run: |
-        $CUDA_VERSION = '12.6.3'
-        $CUDA_TOOLKIT_DIR = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$CUDA_VERSION"
-        $CUDA_DOWNLOAD = "https://developer.download.nvidia.com/compute/cuda/redist"
-
-        # Components versions
-        $CUDART_VER   = "12.6.77"
-        $NVCC_VER     = "12.6.77"
-        $NVRTC_VER    = "12.6.77"
-        $CUBLAS_VER   = "12.6.4.1"
-        $NVTX_VER     = "12.6.77"
-        $PROFILER_VER = "12.6.77"
-        $VS_VER       = "12.6.77"
-        $NVPROF_VER   = "12.6.80"
-        $CCCL_VER     = "12.6.77"
-
-        # Create the directory where the CUDA Toolkit will be installed
-        mkdir -p $CUDA_TOOLKIT_DIR
-
-        # Install unzip to extract the downloaded files
-        choco install unzip -y
-
-        # Download all the required components
-        curl -O "$CUDA_DOWNLOAD/cuda_cudart/windows-x86_64/cuda_cudart-windows-x86_64-${CUDART_VER}-archive.zip"
-        curl -O "$CUDA_DOWNLOAD/cuda_nvcc/windows-x86_64/cuda_nvcc-windows-x86_64-${NVCC_VER}-archive.zip"
-        curl -O "$CUDA_DOWNLOAD/cuda_nvrtc/windows-x86_64/cuda_nvrtc-windows-x86_64-${NVRTC_VER}-archive.zip"
-        curl -O "$CUDA_DOWNLOAD/libcublas/windows-x86_64/libcublas-windows-x86_64-${CUBLAS_VER}-archive.zip"
-        curl -O "$CUDA_DOWNLOAD/cuda_nvtx/windows-x86_64/cuda_nvtx-windows-x86_64-${NVTX_VER}-archive.zip"
-        curl -O "$CUDA_DOWNLOAD/cuda_profiler_api/windows-x86_64/cuda_profiler_api-windows-x86_64-${PROFILER_VER}-archive.zip"
-        curl -O "$CUDA_DOWNLOAD/visual_studio_integration/windows-x86_64/visual_studio_integration-windows-x86_64-${VS_VER}-archive.zip"
-        curl -O "$CUDA_DOWNLOAD/cuda_nvprof/windows-x86_64/cuda_nvprof-windows-x86_64-${NVPROF_VER}-archive.zip"
-        curl -O "$CUDA_DOWNLOAD/cuda_cccl/windows-x86_64/cuda_cccl-windows-x86_64-${CCCL_VER}-archive.zip"
-
-        # Extract all the downloaded files to the CUDA Toolkit directory
-        unzip -q '*.zip' -d $CUDA_TOOLKIT_DIR
-
-        # Copy all the extracted files to the main CUDA Toolkit directory
-        xcopy "$CUDA_TOOLKIT_DIR\cuda_cudart-windows-x86_64-${CUDART_VER}-archive\*" "$CUDA_TOOLKIT_DIR" /E /I /H /Y
-        xcopy "$CUDA_TOOLKIT_DIR\cuda_nvcc-windows-x86_64-${NVCC_VER}-archive\*"     "$CUDA_TOOLKIT_DIR" /E /I /H /Y
-        xcopy "$CUDA_TOOLKIT_DIR\cuda_nvrtc-windows-x86_64-${NVRTC_VER}-archive\*"   "$CUDA_TOOLKIT_DIR" /E /I /H /Y
-        xcopy "$CUDA_TOOLKIT_DIR\libcublas-windows-x86_64-${CUBLAS_VER}-archive\*"   "$CUDA_TOOLKIT_DIR" /E /I /H /Y
-        xcopy "$CUDA_TOOLKIT_DIR\cuda_nvtx-windows-x86_64-${NVTX_VER}-archive\*"     "$CUDA_TOOLKIT_DIR" /E /I /H /Y
-        xcopy "$CUDA_TOOLKIT_DIR\cuda_nvprof-windows-x86_64-${NVPROF_VER}-archive\*" "$CUDA_TOOLKIT_DIR" /E /I /H /Y
-        xcopy "$CUDA_TOOLKIT_DIR\cuda_cccl-windows-x86_64-${CCCL_VER}-archive\*" "$CUDA_TOOLKIT_DIR" /E /I /H /Y
-        xcopy "$CUDA_TOOLKIT_DIR\cuda_profiler_api-windows-x86_64-${PROFILER_VER}-archive\*" "$CUDA_TOOLKIT_DIR" /E /I /H /Y
-        xcopy "$CUDA_TOOLKIT_DIR\visual_studio_integration-windows-x86_64-${VS_VER}-archive\*" "$CUDA_TOOLKIT_DIR" /E /I /H /Y
-
-        # Visual Studio integration
-        xcopy "$CUDA_TOOLKIT_DIR\visual_studio_integration-windows-x86_64-${VS_VER}-archive\visual_studio_integration\MSBuildExtensions\*" "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Microsoft\VC\v160\BuildCustomizations" /E /I /H /Y
-
-        # Set environment variables
-        echo "$CUDA_TOOLKIT_DIR\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-        echo "$CUDA_TOOLKIT_DIR\libnvvp" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-        echo "CUDA_PATH=$CUDA_TOOLKIT_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-        echo "CUDA_PATH_V12_6=$CUDA_TOOLKIT_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-  
+        nvcc --version
+        echo "CUDA_PATH=$env:CUDA_PATH"
+        echo "Checking CUDA toolkit directory:"
+        ls "$env:CUDA_PATH"
+        ls "$env:CUDA_PATH\bin"
+        
+        # 创建Visual Studio CUDA配置文件
+        $VS_BUILD_DIR = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VC\v170\BuildCustomizations"
+        mkdir -p $VS_BUILD_DIR
+        echo "创建CUDA.props文件..."
 
     - name: Build Project CPU (Windows)
       if: matrix.os == 'windows-latest'
@@ -109,8 +71,23 @@ jobs:
     - name: Build Project GPU (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        Remove-Item -Recurse -Force build, Release
-        bash build.sh --gpu
+        # 显示CUDA环境信息
+        echo "CUDA_PATH: $env:CUDA_PATH"
+        nvcc --version
+        
+        # 确保CUDA环境变量可被bash访问
+        $cudaPath = $env:CUDA_PATH -replace '\\', '/'
+        echo "export CUDA_PATH='$cudaPath'" > cuda_env.sh
+        echo "export CUDA_HOME='$cudaPath'" >> cuda_env.sh
+        echo "export PATH='$cudaPath/bin:$PATH'" >> cuda_env.sh
+        
+        # 显示环境变量
+        cat cuda_env.sh
+        
+        # 使用source加载环境变量并构建
+        Remove-Item -Recurse -Force build, Release -ErrorAction SilentlyContinue
+        bash -c "source ./cuda_env.sh && bash build.sh --gpu"
+        
         cd Release
         Compress-Archive -Path * -DestinationPath ../autotalk-windows-gpu.zip
         cd ..

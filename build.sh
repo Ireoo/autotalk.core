@@ -51,12 +51,24 @@ if [ "$USE_GPU" -eq 1 ]; then
     export PATH="$CUDA_PATH/bin:$PATH"
     export CUDA_HOME="$CUDA_PATH"
     export CUDA_PATH="$CUDA_PATH"
+    
+    # 显示nvcc信息
+    if [ -f "$CUDA_PATH/bin/nvcc.exe" ]; then
+      echo "NVCC版本信息:"
+      "$CUDA_PATH/bin/nvcc.exe" --version
+    else
+      echo "警告: 未找到nvcc.exe"
+    fi
   else
     # Linux/MacOS检查
     if ! command -v nvcc &> /dev/null; then
       echo "错误: 未找到nvcc，请确保CUDA工具包已安装"
       exit 1
     fi
+    
+    # 显示nvcc信息
+    echo "NVCC版本信息:"
+    nvcc --version
   fi
 else
   echo "使用CPU构建"
@@ -114,12 +126,19 @@ CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
 
 # 添加GPU选项
 if [ "$USE_GPU" -eq 1 ]; then
-    CMAKE_ARGS="$CMAKE_ARGS -DGGML_CUDA=ON -DUSE_GPU=ON -DCMAKE_CUDA_ARCHITECTURES=all"
+    CMAKE_ARGS="$CMAKE_ARGS -DUSE_GPU=ON"
+    # 显式设置CUDA架构以避免检测问题
+    if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+        CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_CUDA_ARCHITECTURES=all-major"
+    fi
 fi
 
 # 执行CMake命令
+echo "执行CMake命令: cmake $CMAKE_ARGS .."
 cmake $CMAKE_ARGS ..
 
+# 构建项目
+echo "开始构建项目..."
 cmake --build . --config Release --parallel $NUM_CORES
 
 cd ..
