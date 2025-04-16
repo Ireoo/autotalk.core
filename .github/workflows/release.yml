@@ -97,13 +97,17 @@ jobs:
         echo "CUDA_PATH=$CUDA_TOOLKIT_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
         echo "CUDA_PATH_V12_2=$CUDA_TOOLKIT_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-    - name: Build Project (Windows)
+    - name: Build Project CPU (Windows)
       if: matrix.os == 'windows-latest'
       run: |
         bash build.sh
         cd Release
         Compress-Archive -Path * -DestinationPath ../autotalk-windows-cpu.zip
         cd ..
+
+    - name: Build Project GPU (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
         bash build.sh --gpu
         cd Release
         Compress-Archive -Path * -DestinationPath ../autotalk-windows-gpu.zip
