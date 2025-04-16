@@ -5,6 +5,9 @@ project(AutoTalk LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# 设置CMake策略
+cmake_policy(SET CMP0077 NEW)
+
 # 输出调试信息
 message(STATUS "CMAKE_VERSION: ${CMAKE_VERSION}")
 message(STATUS "CMAKE_GENERATOR: ${CMAKE_GENERATOR}")
@@ -44,7 +47,7 @@ if(USE_GPU)
     
     # 设置CUDA相关参数，确保和Whisper.cpp使用相同设置
     set(GGML_CUDA ON)
-    set(WHISPER_CUBLAS ON)
+    # 移除已弃用的WHISPER_CUBLAS设置
 endif()
 
 # 设置vcpkg工具链
@@ -79,7 +82,7 @@ add_subdirectory(portaudio)
 
 # 设置whisper.cpp相关选项
 if(USE_GPU)
-    set(WHISPER_CUBLAS ON CACHE BOOL "Enable cuBLAS" FORCE)
+    # 使用新的选项替代已弃用的WHISPER_CUBLAS
     set(GGML_CUDA ON CACHE BOOL "Enable CUDA" FORCE)
     set(GGML_CUBLAS ON CACHE BOOL "Enable CUBLAS" FORCE)
     

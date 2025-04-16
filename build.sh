@@ -126,7 +126,7 @@ CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
 
 # 添加GPU选项
 if [ "$USE_GPU" -eq 1 ]; then
-    CMAKE_ARGS="$CMAKE_ARGS -DUSE_GPU=ON"
+    CMAKE_ARGS="$CMAKE_ARGS -DUSE_GPU=ON -DGGML_CUDA=ON -DGGML_CUBLAS=ON"
     # 显式设置CUDA架构以避免检测问题
     if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
         CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_CUDA_ARCHITECTURES=all-major"
