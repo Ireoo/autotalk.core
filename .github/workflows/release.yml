@@ -63,10 +63,10 @@ jobs:
         # 设置CUDA_HOME变量
         echo "CUDA_HOME=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4" >> $env:GITHUB_ENV
 
-    - name: 验证安装
-      run: |
-        nvcc --version
-        nvidia-smi  # 注：GitHub托管Runner无物理GPU，此命令可能报错
+    # - name: 验证安装
+    #   run: |
+    #     nvcc --version
+    #     nvidia-smi  # 注：GitHub托管Runner无物理GPU，此命令可能报错
 
     - name: Build Project CPU (Windows)
       if: matrix.os == 'windows-latest'
