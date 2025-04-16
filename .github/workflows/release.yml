@@ -55,7 +55,7 @@ jobs:
         
         # 创建Visual Studio CUDA配置文件
         $VS_BUILD_DIR = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VC\v170\BuildCustomizations"
-        mkdir -p $VS_BUILD_DIR
+        # mkdir -p $VS_BUILD_DIR
         echo "创建CUDA.props文件..."
 
     - name: Build Project CPU (Windows)
