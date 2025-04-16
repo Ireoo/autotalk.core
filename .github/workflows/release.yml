@@ -42,7 +42,7 @@ jobs:
       if: matrix.os == 'windows-latest'
       uses: Jimver/cuda-toolkit@v0.2.11
       with:
-        cuda: '12.3.2'
+        cuda: '12.6.3'
         method: 'network'
         sub-packages: '["nvcc", "cudart", "cublas", "nvrtc", "nvtx", "visual_studio_integration"]'
 
