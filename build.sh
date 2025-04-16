@@ -138,9 +138,6 @@ else
     exit 1
 fi
 
-# 复制Boost DLL文件
-cp -f third_party/install/lib/*.dll Release/
-
 if [ "$SKIP_DEPS" -eq 0 ]; then
     echo "正在构建 libsndfile..."
 
