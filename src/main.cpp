@@ -56,7 +56,12 @@ std::string REPEAT_TEXT;
 
 // bool is_append = false;
 // std::vector<float> repeat_audio;
-
+static const std::regex pattern(R"(。+$)", std::regex::optimize);
+static const std::regex pattern_wen(R"(？+)", std::regex::optimize);
+static const std::regex pattern_gan(R"(！+)", std::regex::optimize);
+static const std::regex pattern_ju(R"(。+)", std::regex::optimize);
+static const std::regex pattern_dou(R"(，+)", std::regex::optimize);
+std::string last_recognized_text;
 // Signal handler for Ctrl+C
 void signalHandler(int signal)
 {
@@ -76,26 +81,6 @@ void processAudio(const std::vector<float> &buffer)
     {
         audioQueue.push(buffer);
     }
-}
-
-// Helper function: Convert UTF-8 string to display encoding
-std::string convertToLocalEncoding(const char *utf8Text)
-{
-#ifdef _WIN32
-    // 在Windows上使用UTF-8到本地编码的转换
-    int len = MultiByteToWideChar(CP_UTF8, 0, utf8Text, -1, nullptr, 0);
-    std::vector<wchar_t> wstr(len);
-    MultiByteToWideChar(CP_UTF8, 0, utf8Text, -1, wstr.data(), len);
-
-    len = WideCharToMultiByte(CP_ACP, 0, wstr.data(), -1, nullptr, 0, nullptr, nullptr);
-    std::vector<char> str(len);
-    WideCharToMultiByte(CP_ACP, 0, wstr.data(), -1, str.data(), len, nullptr, nullptr);
-
-    return std::string(str.data());
-#else
-    // 在Linux上直接返回UTF-8
-    return std::string(utf8Text);
-#endif
 }
 
 void ClearConsoleBlock(HANDLE hConsole, int startRow, int lineCount, int width)
@@ -186,22 +171,37 @@ void processSpeechRecognition()
                         }
                     }
 
+                    // 匹配末尾连续句号的正则表达式
+                    // std::regex pattern(R"(。{1,}$)");
+                    // 替换为 "..."
+                    recognized_text = std::regex_replace(recognized_text, pattern, "…");
+                    recognized_text = std::regex_replace(recognized_text, pattern_wen, "?");
+                    recognized_text = std::regex_replace(recognized_text, pattern_gan, "!");
+                    recognized_text = std::regex_replace(recognized_text, pattern_ju, ".");
+                    recognized_text = std::regex_replace(recognized_text, pattern_dou, ",");
+                    if (recognized_text.length() > last_recognized_text.length() + 100)
+                    {
+                        continue;
+                    }
+
+                    last_recognized_text = recognized_text;
+
                     if (std::regex_search(recognized_text, std::regex("^(\\.)")))
                     {
 
                         if (running)
                         {
-                            std::lock_guard<std::mutex> lock(bufferMutex);
-                            if (audio_chunk.size() >= audio_copy.size())
-                            {
-                                audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
-                            } else {
-                                audio_chunk.clear();
-                            }
+                            // std::lock_guard<std::mutex> lock(bufferMutex);
+                            // if (audio_chunk.size() >= audio_copy.size())
+                            // {
+                            //     audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
+                            // } else {
+                            //     audio_chunk.clear();
+                            // }
                             CONSOLE_SCREEN_BUFFER_INFO csbi;
                             GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
                             int consoleWidth = csbi.dwSize.X;
-                            std::cout << "\r" << std::string(consoleWidth, ' ') << "\r[" << timestamp << "]: ..." << std::flush;
+                            std::cout << "\r" << std::string(consoleWidth, ' ') << "\r[" << timestamp << "]: …" << std::flush;
                         }
                     }
                     else if (running)
@@ -233,7 +233,7 @@ void processSpeechRecognition()
                         SetConsoleCursorPosition(hConsole, newPos);
                         std::cout << "[" << timestamp << "]: " << recognized_text << std::flush;
 
-                        if (std::regex_search(recognized_text, std::regex("[\\.!?！？~]$")))
+                        if (std::regex_search(recognized_text, std::regex("[\\.!?]")))
                         {
                             std::lock_guard<std::mutex> lock(bufferMutex);
                             if (audio_chunk.size() >= audio_copy.size())
@@ -244,30 +244,25 @@ void processSpeechRecognition()
                             {
                                 audio_chunk.clear();
                             }
+                            std::cout << "<KEYWORD>";
                             std::cout << std::endl;
                         }
-                        else
-                        // 如果 recognized_text 里面有两个。
-                        if(std::regex_search(recognized_text, std::regex("[，！？].*。$"))) {
-                            std::lock_guard<std::mutex> lock(bufferMutex);
-                            if (audio_chunk.size() >= audio_copy.size())
-                            {
-                                audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
-                            }
-                            else
-                            {
-                                audio_chunk.clear();
-                            }
-                            std::cout << std::endl;
-                        }
-
                     }
 
-                    size_t keep_size = SAMPLE_RATE * 30;
+                    // std::lock_guard<std::mutex> lock(bufferMutex);
+                    // audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
+                    // std::cout << std::endl;
+                    size_t keep_size = SAMPLE_RATE * 5;
                     if (audio_chunk.size() > keep_size)
                     {
                         std::lock_guard<std::mutex> lock(bufferMutex);
-                        audio_chunk.erase(audio_chunk.begin(), audio_chunk.end() - keep_size);
+                        audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
+                        // audio_chunk.erase(audio_chunk.begin(), audio_chunk.end() - keep_size);
+                        std::cout << "<TIME>";
+                        if (recognized_text != "…")
+                        {
+                            std::cout << std::endl;
+                        }
                     }
                 }
             }
@@ -281,7 +276,7 @@ void processSpeechRecognition()
             }
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 }
 
