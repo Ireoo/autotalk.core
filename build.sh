@@ -226,4 +226,4 @@ fi
 echo "可执行文件位于 Release 目录中"
 
 # 运行程序
-./Release/autotalk.exe --list
+# ./Release/autotalk.exe --list

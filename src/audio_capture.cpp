@@ -124,34 +124,35 @@ std::vector<std::pair<int, std::string>> AudioCapture::getInputDevices() const {
     for (int i = 0; i < numDevices; i++) {
         const PaDeviceInfo* deviceInfo = Pa_GetDeviceInfo(i);
 
-        devices.push_back({i, deviceInfo->name});
-        processedNames.push_back(deviceInfo->name);
+        // devices.push_back({i, deviceInfo->name});
+        // processedNames.push_back(deviceInfo->name);
 
-        // if (deviceInfo->maxInputChannels > 0) {
-        //     std::string deviceName = deviceInfo->name;
+        if (deviceInfo->maxInputChannels > 0) {
+            std::string deviceName = deviceInfo->name;
             
-        //     // 检查是否是麦克风设备
-        //     if (deviceName.find("麦克风") != std::string::npos || 
-        //         deviceName.find("Microphone") != std::string::npos || 
-        //         deviceName.find("input") != std::string::npos) {
+            // 检查是否是麦克风设备
+            if (deviceName.find("麦克风") != std::string::npos || 
+                deviceName.find("Microphone") != std::string::npos || 
+                deviceName.find("input") != std::string::npos || 
+                deviceName.find("Audio") != std::string::npos) {
                 
-        //         // 检查是否与已处理的设备名称相似
-        //         bool isDuplicate = false;
-        //         for (const auto& processedName : processedNames) {
-        //             // 如果新设备名称包含已处理名称，或者已处理名称包含新设备名称
-        //             if (deviceName.find(processedName) != std::string::npos || 
-        //                 processedName.find(deviceName) != std::string::npos) {
-        //                 isDuplicate = true;
-        //                 break;
-        //             }
-        //         }
+                // 检查是否与已处理的设备名称相似
+                bool isDuplicate = false;
+                for (const auto& processedName : processedNames) {
+                    // 如果新设备名称包含已处理名称，或者已处理名称包含新设备名称
+                    if (deviceName.find(processedName) != std::string::npos || 
+                        processedName.find(deviceName) != std::string::npos) {
+                        isDuplicate = true;
+                        break;
+                    }
+                }
                 
-        //         if (!isDuplicate) {
-        //             devices.push_back({i, deviceName});
-        //             processedNames.push_back(deviceName);
-        //         }
-        //     }
-        // }
+                if (!isDuplicate) {
+                    devices.push_back({i, deviceName});
+                    processedNames.push_back(deviceName);
+                }
+            }
+        }
     }
 
     return devices;
