@@ -359,14 +359,38 @@ int main(int argc, char **argv)
     while (running)
     {
         std::this_thread::sleep_for(std::chrono::seconds(1));
-
+        
         // 显示系统状态
         systemMonitor->update();
-        std::cout << "\rCPU: " << std::fixed << std::setprecision(1)
+        
+        // 准备显示内容
+        std::cout << "\r";
+        
+        // 基本系统信息
+        std::cout << "CPU: " << std::fixed << std::setprecision(1)
                   << systemMonitor->getCpuUsage() << "% | RAM: "
                   << std::fixed << std::setprecision(1)
-                  << systemMonitor->getMemoryUsageMB() << "MB"
-                  << std::flush;
+                  << systemMonitor->getMemoryUsageMB() << "MB";
+        
+        // 如果GPU可用，显示GPU信息
+        if (systemMonitor->isGPUAvailable()) {
+            std::cout << " | GPU: " << std::fixed << std::setprecision(1)
+                      << systemMonitor->getGPUUsage() << "%";
+            
+            // 显示GPU内存使用情况
+            std::cout << " | GPU内存: " << std::fixed << std::setprecision(1)
+                      << systemMonitor->getGPUMemoryUsageMB() << "MB/"
+                      << std::fixed << std::setprecision(1)
+                      << systemMonitor->getGPUMemoryTotalMB() << "MB ("
+                      << std::fixed << std::setprecision(1)
+                      << systemMonitor->getGPUMemoryPercent() << "%)";
+            
+            // 显示GPU温度
+            std::cout << " | 温度: " << std::fixed << std::setprecision(1)
+                      << systemMonitor->getGPUTemperature() << "°C";
+        }
+        
+        std::cout << std::flush;
     }
 
     // 清理资源

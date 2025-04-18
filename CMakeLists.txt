@@ -47,6 +47,41 @@ if(USE_GPU)
     
     # 设置CUDA相关参数，确保和Whisper.cpp使用相同设置
     set(GGML_CUDA ON)
+    
+    # 添加NVAPI支持
+    if(WIN32)
+        # 尝试寻找NVAPI SDK的路径
+        if(EXISTS "$ENV{NVAPI_SDK_PATH}")
+            set(NVAPI_SDK_PATH "$ENV{NVAPI_SDK_PATH}")
+        else()
+            # 尝试在标准位置查找NVAPI SDK
+            set(NVAPI_SDK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/third_party/nvapi")
+        endif()
+        
+        # 检查NVAPI SDK是否存在
+        if(EXISTS "${NVAPI_SDK_PATH}/nvapi.h")
+            message(STATUS "找到NVAPI SDK: ${NVAPI_SDK_PATH}")
+            include_directories(${NVAPI_SDK_PATH})
+            add_definitions(-DHAVE_NVAPI)
+            
+            # 根据架构选择正确的库
+            if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+                set(NVAPI_LIB "${NVAPI_SDK_PATH}/amd64/nvapi64.lib")
+            else()
+                set(NVAPI_LIB "${NVAPI_SDK_PATH}/x86/nvapi.lib")
+            endif()
+            
+            # 检查库文件是否存在
+            if(EXISTS "${NVAPI_LIB}")
+                message(STATUS "找到NVAPI库: ${NVAPI_LIB}")
+            else()
+                message(WARNING "未找到NVAPI库: ${NVAPI_LIB}")
+                set(NVAPI_LIB "")
+            endif()
+        else()
+            message(WARNING "未找到NVAPI SDK，GPU温度和内存监控功能可能不可用")
+        endif()
+    endif()
 endif()
 
 # 设置vcpkg工具链
@@ -144,6 +179,11 @@ endif()
 # 如果启用GPU，链接CUDA库
 if(USE_GPU)
     target_link_libraries(autotalk PRIVATE ${CUDA_LIBRARIES})
+    
+    # 如果找到了NVAPI库，链接它
+    if(WIN32 AND DEFINED NVAPI_LIB AND EXISTS "${NVAPI_LIB}")
+        target_link_libraries(autotalk PRIVATE ${NVAPI_LIB})
+    endif()
 endif()
 
 # 复制模型目录

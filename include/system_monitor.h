@@ -76,8 +76,25 @@ struct GPUUsageData {
     std::mutex mutex;
     int maxSamples;                  // 保存的最大样本数
     bool available;                  // GPU监控是否可用
+    
+    // 新增GPU监控数据
+    float memoryUsageMB;             // GPU内存使用量(MB)
+    float memoryTotalMB;             // GPU总内存(MB)
+    float memoryUsagePercent;        // GPU内存使用百分比
+    float temperature;               // GPU温度(摄氏度)
+    std::string gpuName;             // GPU名称
+    std::string driverVersion;       // 驱动版本
 
-    GPUUsageData(int maxSamples = 100) : maxSamples(maxSamples), currentUsage(0.0f), available(false) {}
+    GPUUsageData(int maxSamples = 100) : 
+        maxSamples(maxSamples), 
+        currentUsage(0.0f), 
+        available(false),
+        memoryUsageMB(0.0f),
+        memoryTotalMB(0.0f),
+        memoryUsagePercent(0.0f),
+        temperature(0.0f),
+        gpuName("未知"),
+        driverVersion("未知") {}
     
     // 删除复制构造函数和复制赋值运算符
     GPUUsageData(const GPUUsageData&) = delete;
@@ -88,7 +105,13 @@ struct GPUUsageData {
         : usageHistory(std::move(other.usageHistory)),
           currentUsage(other.currentUsage),
           maxSamples(other.maxSamples),
-          available(other.available) {}
+          available(other.available),
+          memoryUsageMB(other.memoryUsageMB),
+          memoryTotalMB(other.memoryTotalMB),
+          memoryUsagePercent(other.memoryUsagePercent),
+          temperature(other.temperature),
+          gpuName(std::move(other.gpuName)),
+          driverVersion(std::move(other.driverVersion)) {}
           
     GPUUsageData& operator=(GPUUsageData&& other) noexcept {
         if (this != &other) {
@@ -96,6 +119,12 @@ struct GPUUsageData {
             currentUsage = other.currentUsage;
             maxSamples = other.maxSamples;
             available = other.available;
+            memoryUsageMB = other.memoryUsageMB;
+            memoryTotalMB = other.memoryTotalMB;
+            memoryUsagePercent = other.memoryUsagePercent;
+            temperature = other.temperature;
+            gpuName = std::move(other.gpuName);
+            driverVersion = std::move(other.driverVersion);
         }
         return *this;
     }
@@ -111,6 +140,16 @@ public:
     float getCpuUsage() const;
     float getMemoryUsage() const;
     float getMemoryUsageMB() const; // 获取内存使用量（MB）
+    
+    // 添加GPU相关的getter方法
+    bool isGPUAvailable() const;    // 判断GPU是否可用
+    float getGPUUsage() const;      // 获取GPU使用率
+    float getGPUMemoryUsageMB() const;   // 获取GPU内存使用量(MB)
+    float getGPUMemoryTotalMB() const;   // 获取GPU总内存(MB)
+    float getGPUMemoryPercent() const;   // 获取GPU内存使用百分比
+    float getGPUTemperature() const;     // 获取GPU温度
+    std::string getGPUName() const;      // 获取GPU名称
+    std::string getGPUDriverVersion() const; // 获取GPU驱动版本
 
     // 初始化监控系统
     bool initialize();
