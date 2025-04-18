@@ -419,6 +419,14 @@ void SystemMonitor::updateGPUUsage() {
                 multiGPUInfo_.gpus[i].temperature = static_cast<float>(thermalSettings.sensor[0].currentTemp);
             }
             
+            // 获取GPU功耗
+            NV_GPU_POWER_STATUS powerStatus = {0};
+            powerStatus.version = NV_GPU_POWER_STATUS_VER;
+            nvStatus = NvAPI_GPU_ClientPowerPoliciesGetStatus(gpuHandles[i], &powerStatus);
+            if (nvStatus == NVAPI_OK) {
+                multiGPUInfo_.gpus[i].power = static_cast<float>(powerStatus.power) / 1000.0f; // 转换为瓦特
+            }
+            
             // 获取GPU利用率
             NV_GPU_DYNAMIC_PSTATES_INFO_EX pstatesInfo = {0};
             pstatesInfo.version = NV_GPU_DYNAMIC_PSTATES_INFO_EX_VER;
@@ -652,6 +660,10 @@ float SystemMonitor::getGPUMemoryPercent() const {
 
 float SystemMonitor::getGPUTemperature() const {
     return gpuUsageData_.temperature;
+}
+
+float SystemMonitor::getGPUPower() const {
+    return gpuUsageData_.power;
 }
 
 std::string SystemMonitor::getGPUName() const {

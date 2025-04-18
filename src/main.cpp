@@ -41,7 +41,7 @@ AudioServer *audioServer = nullptr;
 
 // 检查是否启用GPU
 #ifdef USE_GPU
-bool useGPU = true;  // 如果编译时定义了USE_GPU，则默认启用
+bool useGPU = true; // 如果编译时定义了USE_GPU，则默认启用
 #else
 bool useGPU = false; // 否则默认禁用
 #endif
@@ -226,6 +226,92 @@ void processAudioStream()
     }
 }
 
+void monitor()
+{
+    // 显示系统状态
+    systemMonitor->update();
+
+    // 显示当前时间
+    auto now = std::chrono::system_clock::now();
+    auto now_time_t = std::chrono::system_clock::to_time_t(now);
+    std::tm now_tm;
+#ifdef _WIN32
+    localtime_s(&now_tm, &now_time_t);
+#else
+    now_tm = *localtime(&now_time_t);
+#endif
+    std::cout << "\n[" << std::put_time(&now_tm, "%H:%M:%S") << "] ";
+
+    // 基本系统信息，添加CPU核心数
+    std::cout << "CPU: " << std::fixed << std::setprecision(1)
+              << systemMonitor->getCpuUsage() << "% ("
+              << systemMonitor->getCPUCores() << "核) | RAM: "
+              << std::fixed << std::setprecision(1)
+              << systemMonitor->getMemoryUsageMB() << "MB";
+
+    // 获取GPU总数
+    int gpuCount = systemMonitor->getGPUCount();
+    int activeGPU = systemMonitor->getActiveGPU();
+
+    // 如果有GPU，显示所有GPU信息
+    if (gpuCount > 0)
+    {
+        auto allGPUs = systemMonitor->getAllGPUs();
+
+        for (int i = 0; i < gpuCount; i++)
+        {
+            const auto &gpu = allGPUs[i];
+            std::string activeTag = (i == activeGPU) ? " [Whisper正在使用]" : "";
+
+            std::cout << std::endl
+                      << "GPU " << i << ": " << gpu.gpuName << activeTag
+                      << " | 使用率: " << std::fixed << std::setprecision(1)
+                      << gpu.currentUsage << "%";
+
+            // 显示GPU内存使用情况 - 修复显示顺序
+            std::cout << " | GPU内存: " << std::fixed << std::setprecision(1)
+                      << gpu.memoryUsageMB << "MB/"
+                      << std::fixed << std::setprecision(1)
+                      << gpu.memoryTotalMB << "MB ("
+                      << std::fixed << std::setprecision(1)
+                      << gpu.memoryUsagePercent << "%)";
+
+            // 显示GPU温度、功耗和驱动版本
+            std::cout << " | 温度: " << std::fixed << std::setprecision(1)
+                      << gpu.temperature << "°C"
+                      << " | 功耗: " << std::fixed << std::setprecision(1)
+                      << gpu.power << "W"
+                      << " | 驱动版本: " << gpu.driverVersion;
+        }
+    }
+    else if (systemMonitor->isGPUAvailable())
+    {
+        // 兼容单GPU情况的旧代码
+        std::string activeTag = useGPU ? " [Whisper正在使用]" : "";
+        std::cout << std::endl
+                  << "GPU: " << systemMonitor->getGPUName() << activeTag
+                  << " | 使用率: " << std::fixed << std::setprecision(1)
+                  << systemMonitor->getGPUUsage() << "%";
+
+        // 显示GPU内存使用情况 - 修复显示顺序
+        std::cout << " | GPU内存: " << std::fixed << std::setprecision(1)
+                  << systemMonitor->getGPUMemoryUsageMB() << "MB/"
+                  << std::fixed << std::setprecision(1)
+                  << systemMonitor->getGPUMemoryTotalMB() << "MB ("
+                  << std::fixed << std::setprecision(1)
+                  << systemMonitor->getGPUMemoryPercent() << "%)";
+
+        // 显示GPU温度、功耗和驱动版本
+        std::cout << " | 温度: " << std::fixed << std::setprecision(1)
+                  << systemMonitor->getGPUTemperature() << "°C"
+                  << " | 功耗: " << std::fixed << std::setprecision(1)
+                  << systemMonitor->getGPUPower() << "W"
+                  << " | 驱动版本: " << systemMonitor->getGPUDriverVersion();
+    }
+
+    std::cout << std::flush;
+}
+
 int main(int argc, char **argv)
 {
 // 设置中文控制台输出
@@ -241,6 +327,7 @@ int main(int argc, char **argv)
     int server_port = 3000;
     bool list_models = false;
     std::string model_path = "models/ggml-base.bin";
+    bool test_mode = false;
 
     // 解析命令行参数
     for (int i = 1; i < argc; i++)
@@ -264,6 +351,11 @@ int main(int argc, char **argv)
             useGPU = true;
             std::cout << "启用GPU模式" << std::endl;
         }
+        else if (strcmp(argv[i], "--test") == 0)
+        {
+            test_mode = true;
+            std::cout << "启用测试模式，只显示状态" << std::endl;
+        }
         else if (strcmp(argv[i], "--help") == 0)
         {
             std::cout << "使用方法: " << argv[0] << " [选项]" << std::endl;
@@ -272,9 +364,16 @@ int main(int argc, char **argv)
             std::cout << "  --model <路径>  指定Whisper模型路径 (默认: models/ggml-base.bin)" << std::endl;
             std::cout << "  --list          列出已安装的模型" << std::endl;
             std::cout << "  --gpu           启用GPU支持" << std::endl;
+            std::cout << "  --test          测试模式，只显示状态" << std::endl;
             std::cout << "  --help          显示此帮助信息" << std::endl;
             return 0;
         }
+    }
+
+    if (test_mode)
+    {
+        // 测试模式：模拟系统状态显示
+        monitor();
     }
 
     // 列出模型
@@ -331,20 +430,23 @@ int main(int argc, char **argv)
     // 初始化Whisper上下文
     std::cout << "正在加载Whisper模型: " << model_path << std::endl;
     whisper_context_params wparams = whisper_context_default_params();
-    if (useGPU) {
+    if (useGPU)
+    {
         // 设置GPU设备号，默认使用第一个GPU（索引0）
         wparams.use_gpu = true;
         wparams.gpu_device = 0; // 默认使用第一个GPU
     }
     ctx = whisper_init_from_file_with_params(model_path.c_str(), wparams);
-    if (ctx == nullptr) {
+    if (ctx == nullptr)
+    {
         std::cerr << "加载Whisper模型失败" << std::endl;
         delete systemMonitor;
         return 1;
     }
 
     // 如果使用GPU，告知系统监控Whisper正在使用的GPU索引
-    if (useGPU) {
+    if (useGPU)
+    {
         // 获取whisper正在使用的GPU设备号
         int whisperGPUIndex = wparams.gpu_device;
         systemMonitor->setActiveGPU(whisperGPUIndex);
@@ -385,81 +487,8 @@ int main(int argc, char **argv)
     while (running)
     {
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        
-        // 显示系统状态
-        systemMonitor->update();
-        
-        // 使用新行而不是回车符，避免覆盖显示
-        std::cout << "\n";
-        
-        // 显示当前时间
-        auto now = std::chrono::system_clock::now();
-        auto now_time_t = std::chrono::system_clock::to_time_t(now);
-        std::tm now_tm;
-        #ifdef _WIN32
-        localtime_s(&now_tm, &now_time_t);
-        #else
-        now_tm = *localtime(&now_time_t);
-        #endif
-        std::cout << "[" << std::put_time(&now_tm, "%H:%M:%S") << "] ";
-        
-        // 基本系统信息，添加CPU核心数
-        std::cout << "CPU: " << std::fixed << std::setprecision(1)
-                  << systemMonitor->getCpuUsage() << "% (" 
-                  << systemMonitor->getCPUCores() << "核) | RAM: "
-                  << std::fixed << std::setprecision(1)
-                  << systemMonitor->getMemoryUsageMB() << "MB";
-        
-        // 获取GPU总数
-        int gpuCount = systemMonitor->getGPUCount();
-        int activeGPU = systemMonitor->getActiveGPU();
-        
-        // 如果有GPU，显示所有GPU信息
-        if (gpuCount > 0) {
-            auto allGPUs = systemMonitor->getAllGPUs();
-            
-            for (int i = 0; i < gpuCount; i++) {
-                const auto& gpu = allGPUs[i];
-                std::string activeTag = (i == activeGPU) ? " [Whisper正在使用] " : "";
-                
-                std::cout << std::endl << "GPU " << i << ": " << gpu.gpuName << activeTag
-                          << " | 使用率: " << std::fixed << std::setprecision(1)
-                          << gpu.currentUsage << "%";
-                
-                // 显示GPU内存使用情况
-                std::cout << " | GPU内存: " << std::fixed << std::setprecision(1)
-                          << gpu.memoryUsageMB << "MB/"
-                          << std::fixed << std::setprecision(1)
-                          << gpu.memoryTotalMB << "MB ("
-                          << std::fixed << std::setprecision(1)
-                          << gpu.memoryUsagePercent << "%)";
-                
-                // 显示GPU温度和驱动版本
-                std::cout << " | 温度: " << std::fixed << std::setprecision(1)
-                          << gpu.temperature << "°C"
-                          << " | 驱动版本: " << gpu.driverVersion;
-            }
-        } else if (systemMonitor->isGPUAvailable()) {
-            // 兼容单GPU情况的旧代码
-            std::cout << std::endl << "GPU: " << systemMonitor->getGPUName() 
-                      << " | 使用率: " << std::fixed << std::setprecision(1)
-                      << systemMonitor->getGPUUsage() << "%";
-            
-            // 显示GPU内存使用情况
-            std::cout << " | GPU内存: " << std::fixed << std::setprecision(1)
-                      << systemMonitor->getGPUMemoryUsageMB() << "MB/"
-                      << std::fixed << std::setprecision(1)
-                      << systemMonitor->getGPUMemoryTotalMB() << "MB ("
-                      << std::fixed << std::setprecision(1)
-                      << systemMonitor->getGPUMemoryPercent() << "%)";
-            
-            // 显示GPU温度和驱动版本
-            std::cout << " | 温度: " << std::fixed << std::setprecision(1)
-                      << systemMonitor->getGPUTemperature() << "°C"
-                      << " | 驱动版本: " << systemMonitor->getGPUDriverVersion();
-        }
-        
-        std::cout << std::flush;
+
+        monitor();
     }
 
     // 清理资源

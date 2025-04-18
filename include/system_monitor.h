@@ -85,6 +85,7 @@ struct GPUUsageData {
     float memoryTotalMB;             // GPU总内存(MB)
     float memoryUsagePercent;        // GPU内存使用百分比
     float temperature;               // GPU温度(摄氏度)
+    float power;                     // GPU当前功耗(瓦特)
     std::string gpuName;             // GPU名称
     std::string driverVersion;       // 驱动版本
     int gpuIndex;                    // GPU索引
@@ -97,6 +98,7 @@ struct GPUUsageData {
         memoryTotalMB(0.0f),
         memoryUsagePercent(0.0f),
         temperature(0.0f),
+        power(0.0f),
         gpuName("未知"),
         driverVersion("未知"),
         gpuIndex(0) {}
@@ -115,6 +117,7 @@ struct GPUUsageData {
           memoryTotalMB(other.memoryTotalMB),
           memoryUsagePercent(other.memoryUsagePercent),
           temperature(other.temperature),
+          power(other.power),
           gpuName(std::move(other.gpuName)),
           driverVersion(std::move(other.driverVersion)),
           gpuIndex(other.gpuIndex) {}
@@ -129,6 +132,7 @@ struct GPUUsageData {
             memoryTotalMB = other.memoryTotalMB;
             memoryUsagePercent = other.memoryUsagePercent;
             temperature = other.temperature;
+            power = other.power;
             gpuName = std::move(other.gpuName);
             driverVersion = std::move(other.driverVersion);
             gpuIndex = other.gpuIndex;
@@ -146,6 +150,7 @@ struct GPUUsageData {
         memoryTotalMB = other.memoryTotalMB;
         memoryUsagePercent = other.memoryUsagePercent;
         temperature = other.temperature;
+        power = other.power;
         gpuName = other.gpuName;
         driverVersion = other.driverVersion;
         gpuIndex = other.gpuIndex;
@@ -162,6 +167,7 @@ struct GPUUsageData {
         copy.memoryTotalMB = this->memoryTotalMB;
         copy.memoryUsagePercent = this->memoryUsagePercent;
         copy.temperature = this->temperature;
+        copy.power = this->power;
         copy.gpuName = this->gpuName;
         copy.driverVersion = this->driverVersion;
         copy.gpuIndex = this->gpuIndex;
@@ -196,6 +202,7 @@ public:
     float getGPUMemoryTotalMB() const;   // 获取GPU总内存(MB)
     float getGPUMemoryPercent() const;   // 获取GPU内存使用百分比
     float getGPUTemperature() const;     // 获取GPU温度
+    float getGPUPower() const;           // 获取GPU当前功耗
     std::string getGPUName() const;      // 获取GPU名称
     std::string getGPUDriverVersion() const; // 获取GPU驱动版本
 
