@@ -50,17 +50,14 @@ std::vector<float> audio_chunk;
 std::string confirmInfo;
 const int MAX_AUDIO_LENGTH = 10 * SAMPLE_RATE; // 最大音频长度（10秒）
 // 识别语音相同内容次数
-const int MAX_REPEAT_COUNT = 5;
+const int MAX_REPEAT_COUNT = 3;
 int REPEAT_COUNT = 0;
 std::string REPEAT_TEXT;
 
 // bool is_append = false;
 // std::vector<float> repeat_audio;
 static const std::regex pattern(R"(。+$)", std::regex::optimize);
-static const std::regex pattern_wen(R"(？+)", std::regex::optimize);
-static const std::regex pattern_gan(R"(！+)", std::regex::optimize);
-static const std::regex pattern_ju(R"(。+)", std::regex::optimize);
-static const std::regex pattern_dou(R"(，+)", std::regex::optimize);
+static const std::regex pattern_dou(R"(^[,，]+)", std::regex::optimize);
 std::string last_recognized_text;
 // Signal handler for Ctrl+C
 void signalHandler(int signal)
@@ -97,6 +94,47 @@ void ClearConsoleBlock(HANDLE hConsole, int startRow, int lineCount, int width)
     }
 }
 
+void clearConsole(std::string txt, bool _lines = true)
+{
+    if (_lines)
+    {
+        // 获取控制台句柄及宽度
+        HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        GetConsoleScreenBufferInfo(hConsole, &csbi);
+        int consoleWidth = csbi.dwSize.X;
+
+        // 将 recognized_text 分割为多行
+        std::istringstream iss(txt);
+        std::vector<std::string> lines;
+        std::string line;
+        while (std::getline(iss, line))
+        {
+            lines.push_back(line);
+        }
+
+        // 假设 recognized_text 原来打印的位置从当前行开始，
+        // 保存当前光标行号作为开始行（这里简单示例，实际需要精确控制光标）
+        int startRow = csbi.dwCursorPosition.Y;
+
+        // 清除 recognized_text 占据的所有行
+        ClearConsoleBlock(hConsole, startRow, lines.size(), consoleWidth);
+
+        // 移动光标到开始行，并重新打印新的 recognized_text
+        COORD newPos = {0, (SHORT)startRow};
+        SetConsoleCursorPosition(hConsole, newPos);
+        std::cout << txt << std::flush;
+    }
+    else
+    {
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+        int consoleWidth = csbi.dwSize.X;
+
+        std::cout << "\r" << std::string(consoleWidth, ' ') << "\r" << txt << std::flush;
+    }
+}
+
 // 语音识别处理线程函数
 void processSpeechRecognition()
 {
@@ -129,10 +167,10 @@ void processSpeechRecognition()
                 wparams.max_tokens = 128; // 可根据语音内容复杂度适当增加
 
                 // Token 时间戳记录
-                wparams.token_timestamps = false;
+                wparams.token_timestamps = true;
+                wparams.thold_pt = 0.01f; // 降低时间戳阈值以获取更精确的结果
 
                 // 解码温度及相关阈值设置
-                wparams.thold_pt = 0.06f;       // token概率的阈值，可确保低概率输出被抑制
                 wparams.temperature = 0.0f;     // 温度设置为0，保证贪心解码的确定性
                 wparams.temperature_inc = 0.0f; // 不进行温度增量调整
                 wparams.entropy_thold = 2.6f;   // 熵阈值，过高可能导致更多噪声输出，过低可能过于保守
@@ -162,27 +200,101 @@ void processSpeechRecognition()
                 {
                     const int n_segments = whisper_full_n_segments(ctx);
                     std::string recognized_text;
+                    std::string recognized_text_all;
+                    bool end = false;
+                    bool end_end = false;
+                    float end_time = audio_copy.size() / SAMPLE_RATE * 1000;
+                    std::string last_token = "。";
+                    // std::cout << end_i << std::endl;
+                    for (int i = 0; i < n_segments; ++i)
+                    {
+                        // 输出每个token的时间戳信息
+                        std::string str_token_total;
+                        const int n_tokens = whisper_full_n_tokens(ctx, i);
+                        for (int j = 0; j < n_tokens; ++j)
+                        {
+                            const int token = whisper_full_get_token_id(ctx, i, j);
+                            const char *token_text = whisper_token_to_str(ctx, token);
+
+                            // 获取token的时间戳数据
+                            whisper_token_data token_data = whisper_full_get_token_data(ctx, i, j);
+
+                            // 以毫秒为单位输出时间戳
+                            float time_start_ms = token_data.t0 * 10.0f;
+                            float time_end_ms = token_data.t1 * 10.0f;
+
+                            std::string str_token(token_text);
+                            // std::string ju("。");
+
+                            // std::cout << "<TOKEN> '" << str_token << "' ["
+                            //           << time_start_ms << "ms - " << time_end_ms << "ms]" << std::endl;
+
+                            // std::string str_token(token_text);
+                            str_token_total += str_token;
+                            last_token = str_token_total;
+                            if (str_token_total.length() > 3)
+                            {
+                                last_token = str_token_total.substr(str_token_total.length() - 3);
+                            }
+
+                            if (str_token == "。" || last_token == "。" || last_token == "？")
+                            {
+                                if (last_token == "？")
+                                {
+                                    recognized_text = recognized_text.substr(0, recognized_text.length() - 2);
+                                }
+                                else if (last_token == "。")
+                                {
+                                    // recognized_text = recognized_text.substr(0, recognized_text.length() - 3);
+                                }
+
+                                end_time = time_end_ms;
+                                // std::cout << j << " - " << n_tokens - 2 << std::endl;
+                                if (j != n_tokens - 2)
+                                {
+                                    end = true;
+                                }
+                                else
+                                {
+                                    end = true;
+                                    end_end = true;
+                                }
+                                break;
+                            }
+                            else if (str_token != "[_BEG_]" && !end)
+                            {
+
+                                recognized_text += str_token;
+                            }
+                        }
+                        if (end)
+                        {
+                            break;
+                        }
+                    }
+                    if (!end_end)
+                    {
+                        recognized_text += last_token;
+                    }
+                    else
+                    {
+                        recognized_text += "...";
+                    }
+                    // std::cout << end_i << std::endl;
                     for (int i = 0; i < n_segments; ++i)
                     {
                         const char *text = whisper_full_get_segment_text(ctx, i);
+
                         if (text[0] != '\0')
                         {
-                            recognized_text += text;
+                            recognized_text_all += text;
                         }
                     }
 
-                    // 匹配末尾连续句号的正则表达式
-                    // std::regex pattern(R"(。{1,}$)");
-                    // 替换为 "..."
-                    recognized_text = std::regex_replace(recognized_text, pattern, "…");
-                    recognized_text = std::regex_replace(recognized_text, pattern_wen, "?");
-                    recognized_text = std::regex_replace(recognized_text, pattern_gan, "!");
-                    recognized_text = std::regex_replace(recognized_text, pattern_ju, ".");
-                    recognized_text = std::regex_replace(recognized_text, pattern_dou, ",");
-                    if (recognized_text.length() > last_recognized_text.length() + 100)
-                    {
-                        continue;
-                    }
+                    recognized_text_all = std::regex_replace(recognized_text_all, pattern_dou, "");
+                    recognized_text = std::regex_replace(recognized_text, pattern_dou, "");
+
+                    recognized_text_all = std::regex_replace(recognized_text_all, pattern, "...");
 
                     last_recognized_text = recognized_text;
 
@@ -198,72 +310,52 @@ void processSpeechRecognition()
                             // } else {
                             //     audio_chunk.clear();
                             // }
-                            CONSOLE_SCREEN_BUFFER_INFO csbi;
-                            GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-                            int consoleWidth = csbi.dwSize.X;
-                            std::cout << "\r" << std::string(consoleWidth, ' ') << "\r[" << timestamp << "]: …" << std::flush;
+                            clearConsole("[" + timestamp + "]: ...", false);
                         }
                     }
                     else if (running)
                     {
-                        // 获取控制台句柄及宽度
-                        HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-                        CONSOLE_SCREEN_BUFFER_INFO csbi;
-                        GetConsoleScreenBufferInfo(hConsole, &csbi);
-                        int consoleWidth = csbi.dwSize.X;
+                        clearConsole("[" + timestamp + "]: " + recognized_text_all, false);
+                        // std::cout << "[" << timestamp << "]: " << recognized_text_all << std::flush;
 
-                        // 将 recognized_text 分割为多行
-                        std::istringstream iss("[" + timestamp + "]: " + recognized_text);
-                        std::vector<std::string> lines;
-                        std::string line;
-                        while (std::getline(iss, line))
+                        if (std::regex_search(recognized_text, std::regex("[。！？]$")))
                         {
-                            lines.push_back(line);
-                        }
-
-                        // 假设 recognized_text 原来打印的位置从当前行开始，
-                        // 保存当前光标行号作为开始行（这里简单示例，实际需要精确控制光标）
-                        int startRow = csbi.dwCursorPosition.Y;
-
-                        // 清除 recognized_text 占据的所有行
-                        ClearConsoleBlock(hConsole, startRow, lines.size(), consoleWidth);
-
-                        // 移动光标到开始行，并重新打印新的 recognized_text
-                        COORD newPos = {0, (SHORT)startRow};
-                        SetConsoleCursorPosition(hConsole, newPos);
-                        std::cout << "[" << timestamp << "]: " << recognized_text << std::flush;
-
-                        if (std::regex_search(recognized_text, std::regex("[\\.!?]")))
-                        {
-                            std::lock_guard<std::mutex> lock(bufferMutex);
-                            if (audio_chunk.size() >= audio_copy.size())
+                            if (recognized_text_all.length() > recognized_text.length() + 30)
                             {
-                                audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
+                                std::lock_guard<std::mutex> lock(bufferMutex);
+                                if (audio_chunk.size() >= audio_copy.size())
+                                {
+                                    audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + end_time / 1000 * SAMPLE_RATE);
+                                }
+                                else
+                                {
+                                    audio_chunk.clear();
+                                }
+                                // std::cout << "<KEYWORD>";
+                                // 获取控制台句柄及宽度
+
+                                clearConsole("[" + timestamp + "]: " + recognized_text, false);
+                                std::cout << std::endl;
+                                clearConsole("[" + timestamp + "]: " + recognized_text_all.substr(recognized_text_all.length() - recognized_text.length()), false);
                             }
-                            else
-                            {
-                                audio_chunk.clear();
-                            }
-                            std::cout << "<KEYWORD>";
-                            std::cout << std::endl;
                         }
                     }
 
                     // std::lock_guard<std::mutex> lock(bufferMutex);
                     // audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
                     // std::cout << std::endl;
-                    size_t keep_size = SAMPLE_RATE * 5;
-                    if (audio_chunk.size() > keep_size)
-                    {
-                        std::lock_guard<std::mutex> lock(bufferMutex);
-                        audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
-                        // audio_chunk.erase(audio_chunk.begin(), audio_chunk.end() - keep_size);
-                        std::cout << "<TIME>";
-                        if (recognized_text != "…")
-                        {
-                            std::cout << std::endl;
-                        }
-                    }
+                    // size_t keep_size = SAMPLE_RATE * 10;
+                    // if (audio_chunk.size() > keep_size)
+                    // {
+                    //     std::lock_guard<std::mutex> lock(bufferMutex);
+                    //     audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
+                    //     // audio_chunk.erase(audio_chunk.begin(), audio_chunk.end() - keep_size);
+                    //     std::cout << "<TIME>";
+                    //     if (recognized_text != "...")
+                    //     {
+                    //         std::cout << std::endl;
+                    //     }
+                    // }
                 }
             }
             catch (const std::exception &e)
@@ -276,7 +368,7 @@ void processSpeechRecognition()
             }
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
