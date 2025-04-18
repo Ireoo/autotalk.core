@@ -10,6 +10,13 @@
 #include <windows.h>
 #include <psapi.h>
 
+// WMI相关头文件
+#include <wbemidl.h>
+#include <comdef.h>
+#pragma comment(lib, "wbemuuid.lib")
+#pragma comment(lib, "ole32.lib")
+#pragma comment(lib, "oleaut32.lib")
+
 // 仅当有NVAPI SDK时才包含
 #if defined(USE_CUDA) && defined(HAVE_NVAPI)
 #define NVAPI_INTERNAL
@@ -44,6 +51,11 @@ SystemMonitor::~SystemMonitor() {
 
 bool SystemMonitor::initialize() {
 #ifdef _WIN32
+    // 获取CPU核心数
+    SYSTEM_INFO sysInfo;
+    GetSystemInfo(&sysInfo);
+    cpuUsageData_.numCores = sysInfo.dwNumberOfProcessors;
+    
     // 初始化CPU性能计数器
     PDH_STATUS status = PdhOpenQuery(NULL, 0, &cpuQuery_);
     if (status != ERROR_SUCCESS) {
@@ -74,40 +86,178 @@ bool SystemMonitor::initialize() {
     // 如果启用了CUDA并有NVAPI，尝试使用NVAPI初始化
     NvAPI_Status nvStatus = NvAPI_Initialize();
     if (nvStatus == NVAPI_OK) {
-        gpuUsageData_.available = true;
-        
-        // 获取GPU名称和驱动版本
-        NvU32 driverVersion = 0;
-        NvAPI_ShortString buildBranch;
-        nvStatus = NvAPI_SYS_GetDriverAndBranchVersion(&driverVersion, buildBranch);
-        if (nvStatus == NVAPI_OK) {
-            char driverVersionStr[32];
-            snprintf(driverVersionStr, sizeof(driverVersionStr), "%d.%d", 
-                    driverVersion / 100, driverVersion % 100);
-            gpuUsageData_.driverVersion = driverVersionStr;
-        }
-        
         // 获取GPU数量
         NvU32 gpuCount = 0;
         NvPhysicalGpuHandle gpuHandles[NVAPI_MAX_PHYSICAL_GPUS];
         nvStatus = NvAPI_EnumPhysicalGPUs(gpuHandles, &gpuCount);
+        
         if (nvStatus == NVAPI_OK && gpuCount > 0) {
-            // 获取GPU名称
-            NvAPI_ShortString name;
-            nvStatus = NvAPI_GPU_GetFullName(gpuHandles[0], name);
+            // 清空之前的GPU列表
+            std::lock_guard<std::mutex> lock(multiGPUInfo_.mutex);
+            multiGPUInfo_.gpus.clear();
+            
+            // 获取GPU驱动版本（所有GPU共用）
+            NvU32 driverVersion = 0;
+            NvAPI_ShortString buildBranch;
+            nvStatus = NvAPI_SYS_GetDriverAndBranchVersion(&driverVersion, buildBranch);
+            std::string driverVersionStr = "未知";
             if (nvStatus == NVAPI_OK) {
-                gpuUsageData_.gpuName = name;
+                char driverVersionBuffer[32];
+                snprintf(driverVersionBuffer, sizeof(driverVersionBuffer), "%d.%d", 
+                        driverVersion / 100, driverVersion % 100);
+                driverVersionStr = driverVersionBuffer;
             }
             
-            // 获取GPU内存信息
-            NV_DISPLAY_DRIVER_MEMORY_INFO memInfo = {0};
-            memInfo.version = NV_DISPLAY_DRIVER_MEMORY_INFO_VER;
-            nvStatus = NvAPI_GPU_GetMemoryInfo(gpuHandles[0], &memInfo);
-            if (nvStatus == NVAPI_OK) {
-                gpuUsageData_.memoryTotalMB = static_cast<float>(memInfo.dedicatedVideoMemory) / 1024.0f;
+            // 处理每个GPU
+            for (NvU32 i = 0; i < gpuCount; i++) {
+                GPUUsageData gpuData;
+                gpuData.available = true;
+                gpuData.gpuIndex = i;
+                gpuData.driverVersion = driverVersionStr;
+                
+                // 获取GPU名称
+                NvAPI_ShortString name;
+                nvStatus = NvAPI_GPU_GetFullName(gpuHandles[i], name);
+                if (nvStatus == NVAPI_OK) {
+                    gpuData.gpuName = name;
+                }
+                
+                // 获取GPU内存信息
+                NV_DISPLAY_DRIVER_MEMORY_INFO memInfo = {0};
+                memInfo.version = NV_DISPLAY_DRIVER_MEMORY_INFO_VER;
+                nvStatus = NvAPI_GPU_GetMemoryInfo(gpuHandles[i], &memInfo);
+                if (nvStatus == NVAPI_OK) {
+                    gpuData.memoryTotalMB = static_cast<float>(memInfo.dedicatedVideoMemory) / 1024.0f;
+                }
+                
+                multiGPUInfo_.gpus.push_back(std::move(gpuData));
+            }
+            
+            // 如果存在GPU，设置第一个作为当前GPU
+            if (!multiGPUInfo_.gpus.empty()) {
+                gpuUsageData_.copyDataFrom(multiGPUInfo_.gpus[0]);
             }
         }
     }
+#else
+    // 如果没有NVAPI，尝试使用其他方法获取GPU信息
+    #ifdef _WIN32
+    // 尝试通过WMI获取GPU信息
+    HRESULT hres;
+    
+    // 初始化COM
+    hres = CoInitializeEx(0, COINIT_MULTITHREADED);
+    if (SUCCEEDED(hres)) {
+        // 初始化COM安全级别
+        hres = CoInitializeSecurity(
+            NULL, -1, NULL, NULL,
+            RPC_C_AUTHN_LEVEL_DEFAULT,
+            RPC_C_IMP_LEVEL_IMPERSONATE,
+            NULL, EOAC_NONE, NULL
+        );
+        
+        if (SUCCEEDED(hres) || hres == RPC_E_TOO_LATE) {
+            // 创建WMI连接
+            IWbemLocator *pLoc = NULL;
+            hres = CoCreateInstance(
+                CLSID_WbemLocator, 0,
+                CLSCTX_INPROC_SERVER,
+                IID_IWbemLocator, (LPVOID *) &pLoc
+            );
+            
+            if (SUCCEEDED(hres) && pLoc) {
+                // 连接到WMI命名空间
+                IWbemServices *pSvc = NULL;
+                hres = pLoc->ConnectServer(
+                    _bstr_t(L"ROOT\\CIMV2"),
+                    NULL, NULL, 0, NULL, 0, 0, &pSvc
+                );
+                
+                if (SUCCEEDED(hres) && pSvc) {
+                    // 设置安全级别
+                    hres = CoSetProxyBlanket(
+                        pSvc, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, NULL,
+                        RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE,
+                        NULL, EOAC_NONE
+                    );
+                    
+                    if (SUCCEEDED(hres)) {
+                        // 查询GPU信息
+                        IEnumWbemClassObject* pEnumerator = NULL;
+                        hres = pSvc->ExecQuery(
+                            bstr_t("WQL"),
+                            bstr_t("SELECT * FROM Win32_VideoController"),
+                            WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+                            NULL,
+                            &pEnumerator
+                        );
+                        
+                        if (SUCCEEDED(hres) && pEnumerator) {
+                            // 清空之前的GPU列表
+                            std::lock_guard<std::mutex> lock(multiGPUInfo_.mutex);
+                            multiGPUInfo_.gpus.clear();
+                            
+                            // 遍历所有GPU
+                            IWbemClassObject *pclsObj = NULL;
+                            ULONG uReturn = 0;
+                            int gpuIndex = 0;
+                            
+                            while (pEnumerator->Next(WBEM_INFINITE, 1, &pclsObj, &uReturn) == S_OK) {
+                                if (uReturn == 0) break;
+                                
+                                GPUUsageData gpuData;
+                                gpuData.available = true;
+                                gpuData.gpuIndex = gpuIndex++;
+                                VARIANT vtProp;
+                                
+                                // 获取GPU名称
+                                if (pclsObj->Get(L"Name", 0, &vtProp, 0, 0) == S_OK) {
+                                    char gpuName[256] = {0};
+                                    WideCharToMultiByte(CP_UTF8, 0, vtProp.bstrVal, -1, gpuName, sizeof(gpuName), NULL, NULL);
+                                    gpuData.gpuName = gpuName;
+                                    VariantClear(&vtProp);
+                                }
+                                
+                                // 获取驱动版本
+                                if (pclsObj->Get(L"DriverVersion", 0, &vtProp, 0, 0) == S_OK) {
+                                    char driverVersion[256] = {0};
+                                    WideCharToMultiByte(CP_UTF8, 0, vtProp.bstrVal, -1, driverVersion, sizeof(driverVersion), NULL, NULL);
+                                    gpuData.driverVersion = driverVersion;
+                                    VariantClear(&vtProp);
+                                }
+                                
+                                // 获取显存大小 (以字节为单位，转换为MB)
+                                if (pclsObj->Get(L"AdapterRAM", 0, &vtProp, 0, 0) == S_OK) {
+                                    if (vtProp.vt == VT_I4 || vtProp.vt == VT_UI4) {
+                                        gpuData.memoryTotalMB = static_cast<float>(vtProp.ulVal) / (1024.0f * 1024.0f);
+                                    }
+                                    VariantClear(&vtProp);
+                                }
+                                
+                                multiGPUInfo_.gpus.push_back(std::move(gpuData));
+                                pclsObj->Release();
+                            }
+                            
+                            // 如果存在GPU，设置第一个作为当前GPU
+                            if (!multiGPUInfo_.gpus.empty()) {
+                                gpuUsageData_.copyDataFrom(multiGPUInfo_.gpus[0]);
+                            }
+                            
+                            pEnumerator->Release();
+                        }
+                    }
+                    
+                    pSvc->Release();
+                }
+                
+                pLoc->Release();
+            }
+        }
+        
+        // 释放COM
+        CoUninitialize();
+    }
+    #endif
 #endif
 
     // 尝试使用PDH查询GPU利用率
@@ -116,7 +266,7 @@ bool SystemMonitor::initialize() {
         // 尝试添加GPU使用率计数器 (NVIDIA)
         status = PdhAddCounterA(gpuQuery_, "\\GPU Engine(*)\\Utilization Percentage", 0, &gpuCounter_);
         if (status == ERROR_SUCCESS) {
-            if (!gpuUsageData_.available) {
+            if (!gpuUsageData_.available && !multiGPUInfo_.gpus.empty()) {
                 gpuUsageData_.available = true;
             }
             PdhCollectQueryData(gpuQuery_);
@@ -124,7 +274,7 @@ bool SystemMonitor::initialize() {
             // 尝试添加其他GPU计数器
             status = PdhAddCounterA(gpuQuery_, "\\GPU Engine(*engtype_3D)\\Utilization Percentage", 0, &gpuCounter_);
             if (status == ERROR_SUCCESS) {
-                if (!gpuUsageData_.available) {
+                if (!gpuUsageData_.available && !multiGPUInfo_.gpus.empty()) {
                     gpuUsageData_.available = true;
                 }
                 PdhCollectQueryData(gpuQuery_);
@@ -225,7 +375,7 @@ CPUUsageData SystemMonitor::getCPUUsageData() {
 
 void SystemMonitor::updateGPUUsage() {
 #ifdef _WIN32
-    if (!gpuUsageData_.available) {
+    if (!gpuUsageData_.available && multiGPUInfo_.gpus.empty()) {
         return;
     }
     
@@ -236,48 +386,72 @@ void SystemMonitor::updateGPUUsage() {
     NvAPI_Status nvStatus = NvAPI_EnumPhysicalGPUs(gpuHandles, &gpuCount);
     
     if (nvStatus == NVAPI_OK && gpuCount > 0) {
-        // 获取GPU内存使用情况
-        NV_DISPLAY_DRIVER_MEMORY_INFO memInfo = {0};
-        memInfo.version = NV_DISPLAY_DRIVER_MEMORY_INFO_VER;
-        nvStatus = NvAPI_GPU_GetMemoryInfo(gpuHandles[0], &memInfo);
-        if (nvStatus == NVAPI_OK) {
-            float usedMemory = static_cast<float>(memInfo.dedicatedVideoMemory - memInfo.curAvailableDedicatedVideoMemory);
-            
-            std::lock_guard<std::mutex> lock(gpuUsageData_.mutex);
-            gpuUsageData_.memoryUsageMB = usedMemory / 1024.0f;
-            gpuUsageData_.memoryTotalMB = static_cast<float>(memInfo.dedicatedVideoMemory) / 1024.0f;
-            gpuUsageData_.memoryUsagePercent = (usedMemory / memInfo.dedicatedVideoMemory) * 100.0f;
+        std::lock_guard<std::mutex> lockMultiGPU(multiGPUInfo_.mutex);
+        
+        // 确保多GPU信息列表大小与实际GPU数量相符
+        if (multiGPUInfo_.gpus.size() != gpuCount) {
+            // 如果数量不匹配，重新初始化
+            initialize();
+            return;
         }
         
-        // 获取GPU温度
-        NV_GPU_THERMAL_SETTINGS thermalSettings = {0};
-        thermalSettings.version = NV_GPU_THERMAL_SETTINGS_VER;
-        nvStatus = NvAPI_GPU_GetThermalSettings(gpuHandles[0], 0, &thermalSettings);
-        if (nvStatus == NVAPI_OK && thermalSettings.count > 0) {
-            std::lock_guard<std::mutex> lock(gpuUsageData_.mutex);
-            gpuUsageData_.temperature = static_cast<float>(thermalSettings.sensor[0].currentTemp);
-        }
-        
-        // 获取GPU利用率
-        NV_GPU_DYNAMIC_PSTATES_INFO_EX pstatesInfo = {0};
-        pstatesInfo.version = NV_GPU_DYNAMIC_PSTATES_INFO_EX_VER;
-        nvStatus = NvAPI_GPU_GetDynamicPstatesInfoEx(gpuHandles[0], &pstatesInfo);
-        if (nvStatus == NVAPI_OK) {
-            int gpuUtilization = pstatesInfo.utilization[0].percentage;
+        // 更新每个GPU的信息
+        for (NvU32 i = 0; i < gpuCount; i++) {
+            if (i >= multiGPUInfo_.gpus.size()) continue;
             
-            std::lock_guard<std::mutex> lock(gpuUsageData_.mutex);
-            gpuUsageData_.currentUsage = static_cast<float>(gpuUtilization);
-            gpuUsageData_.usageHistory.push_back(gpuUsageData_.currentUsage);
-            
-            // 保持历史记录不超过最大样本数
-            while (gpuUsageData_.usageHistory.size() > gpuUsageData_.maxSamples) {
-                gpuUsageData_.usageHistory.pop_front();
+            // 获取GPU内存使用情况
+            NV_DISPLAY_DRIVER_MEMORY_INFO memInfo = {0};
+            memInfo.version = NV_DISPLAY_DRIVER_MEMORY_INFO_VER;
+            nvStatus = NvAPI_GPU_GetMemoryInfo(gpuHandles[i], &memInfo);
+            if (nvStatus == NVAPI_OK) {
+                float usedMemory = static_cast<float>(memInfo.dedicatedVideoMemory - memInfo.curAvailableDedicatedVideoMemory);
+                
+                multiGPUInfo_.gpus[i].memoryUsageMB = usedMemory / 1024.0f;
+                multiGPUInfo_.gpus[i].memoryTotalMB = static_cast<float>(memInfo.dedicatedVideoMemory) / 1024.0f;
+                multiGPUInfo_.gpus[i].memoryUsagePercent = (usedMemory / memInfo.dedicatedVideoMemory) * 100.0f;
             }
+            
+            // 获取GPU温度
+            NV_GPU_THERMAL_SETTINGS thermalSettings = {0};
+            thermalSettings.version = NV_GPU_THERMAL_SETTINGS_VER;
+            nvStatus = NvAPI_GPU_GetThermalSettings(gpuHandles[i], 0, &thermalSettings);
+            if (nvStatus == NVAPI_OK && thermalSettings.count > 0) {
+                multiGPUInfo_.gpus[i].temperature = static_cast<float>(thermalSettings.sensor[0].currentTemp);
+            }
+            
+            // 获取GPU利用率
+            NV_GPU_DYNAMIC_PSTATES_INFO_EX pstatesInfo = {0};
+            pstatesInfo.version = NV_GPU_DYNAMIC_PSTATES_INFO_EX_VER;
+            nvStatus = NvAPI_GPU_GetDynamicPstatesInfoEx(gpuHandles[i], &pstatesInfo);
+            if (nvStatus == NVAPI_OK) {
+                int gpuUtilization = pstatesInfo.utilization[0].percentage;
+                
+                multiGPUInfo_.gpus[i].currentUsage = static_cast<float>(gpuUtilization);
+                multiGPUInfo_.gpus[i].usageHistory.push_back(multiGPUInfo_.gpus[i].currentUsage);
+                
+                // 保持历史记录不超过最大样本数
+                while (multiGPUInfo_.gpus[i].usageHistory.size() > multiGPUInfo_.gpus[i].maxSamples) {
+                    multiGPUInfo_.gpus[i].usageHistory.pop_front();
+                }
+            }
+        }
+        
+        // 更新当前选中的GPU信息
+        if (!multiGPUInfo_.gpus.empty()) {
+            // 找到当前活跃的GPU索引
+            int activeGpuIndex = 0;
+            if (multiGPUInfo_.activeGPU >= 0 && multiGPUInfo_.activeGPU < static_cast<int>(multiGPUInfo_.gpus.size())) {
+                activeGpuIndex = multiGPUInfo_.activeGPU;
+            }
+            
+            // 更新当前GPU信息 - 使用copyDataFrom代替直接赋值
+            std::lock_guard<std::mutex> lockGPU(gpuUsageData_.mutex);
+            gpuUsageData_.copyDataFrom(multiGPUInfo_.gpus[activeGpuIndex]);
         }
     }
 #endif
     
-    // 如果没有NVAPI或通过NVAPI获取失败，使用PDH
+    // 如果没有NVAPI或通过NVAPI获取失败，使用PDH - 这部分仅更新活跃GPU的使用率
     PDH_FMT_COUNTERVALUE counterVal;
     
     // 收集当前的GPU使用数据
@@ -294,13 +468,33 @@ void SystemMonitor::updateGPUUsage() {
     
     // 更新GPU使用率数据
     {
-        std::lock_guard<std::mutex> lock(gpuUsageData_.mutex);
-        gpuUsageData_.currentUsage = static_cast<float>(counterVal.doubleValue);
-        gpuUsageData_.usageHistory.push_back(gpuUsageData_.currentUsage);
-        
-        // 保持历史记录不超过最大样本数
-        while (gpuUsageData_.usageHistory.size() > gpuUsageData_.maxSamples) {
-            gpuUsageData_.usageHistory.pop_front();
+        std::lock_guard<std::mutex> lockMultiGPU(multiGPUInfo_.mutex);
+        if (!multiGPUInfo_.gpus.empty()) {
+            int activeGpuIndex = 0;
+            if (multiGPUInfo_.activeGPU >= 0 && multiGPUInfo_.activeGPU < static_cast<int>(multiGPUInfo_.gpus.size())) {
+                activeGpuIndex = multiGPUInfo_.activeGPU;
+            }
+            
+            multiGPUInfo_.gpus[activeGpuIndex].currentUsage = static_cast<float>(counterVal.doubleValue);
+            multiGPUInfo_.gpus[activeGpuIndex].usageHistory.push_back(multiGPUInfo_.gpus[activeGpuIndex].currentUsage);
+            
+            // 保持历史记录不超过最大样本数
+            while (multiGPUInfo_.gpus[activeGpuIndex].usageHistory.size() > multiGPUInfo_.gpus[activeGpuIndex].maxSamples) {
+                multiGPUInfo_.gpus[activeGpuIndex].usageHistory.pop_front();
+            }
+            
+            // 更新当前GPU信息
+            std::lock_guard<std::mutex> lockGPU(gpuUsageData_.mutex);
+            gpuUsageData_.copyDataFrom(multiGPUInfo_.gpus[activeGpuIndex]);
+        } else {
+            std::lock_guard<std::mutex> lockGPU(gpuUsageData_.mutex);
+            gpuUsageData_.currentUsage = static_cast<float>(counterVal.doubleValue);
+            gpuUsageData_.usageHistory.push_back(gpuUsageData_.currentUsage);
+            
+            // 保持历史记录不超过最大样本数
+            while (gpuUsageData_.usageHistory.size() > gpuUsageData_.maxSamples) {
+                gpuUsageData_.usageHistory.pop_front();
+            }
         }
     }
 #endif
@@ -466,4 +660,48 @@ std::string SystemMonitor::getGPUName() const {
 
 std::string SystemMonitor::getGPUDriverVersion() const {
     return gpuUsageData_.driverVersion;
+}
+
+// 实现获取CPU核心数的方法
+int SystemMonitor::getCPUCores() const {
+    return cpuUsageData_.numCores;
+}
+
+// 实现获取GPU数量的方法
+int SystemMonitor::getGPUCount() const {
+    // 使用非const引用
+    std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(multiGPUInfo_.mutex));
+    return static_cast<int>(multiGPUInfo_.gpus.size());
+}
+
+// 实现获取所有GPU信息的方法
+std::vector<GPUUsageData> SystemMonitor::getAllGPUs() const {
+    // 创建一个新的向量用于存储GPU数据的副本
+    std::vector<GPUUsageData> result;
+    {
+        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(multiGPUInfo_.mutex));
+        // 为每个GPU创建副本
+        for (const auto& gpu : multiGPUInfo_.gpus) {
+            result.push_back(gpu.createCopy());
+        }
+    }
+    return result;
+}
+
+// 实现获取当前活跃GPU索引的方法
+int SystemMonitor::getActiveGPU() const {
+    std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(multiGPUInfo_.mutex));
+    return multiGPUInfo_.activeGPU;
+}
+
+// 实现设置当前活跃GPU索引的方法
+void SystemMonitor::setActiveGPU(int index) {
+    std::lock_guard<std::mutex> lock(multiGPUInfo_.mutex);
+    if (index >= 0 && index < static_cast<int>(multiGPUInfo_.gpus.size())) {
+        multiGPUInfo_.activeGPU = index;
+        
+        // 更新当前GPU信息
+        std::lock_guard<std::mutex> lockGPU(gpuUsageData_.mutex);
+        gpuUsageData_.copyDataFrom(multiGPUInfo_.gpus[index]);
+    }
 } 

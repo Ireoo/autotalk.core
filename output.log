@@ -1,0 +1,53 @@
+=== 语音实时识别系统 ===
+正在加载Whisper模型: models/ggml-tiny.bin
+whisper_init_from_file_with_params_no_state: loading model from 'models/ggml-tiny.bin'
+whisper_init_with_params_no_state: use gpu    = 1
+whisper_init_with_params_no_state: flash attn = 0
+whisper_init_with_params_no_state: gpu_device = 0
+whisper_init_with_params_no_state: dtw        = 0
+ggml_cuda_init: GGML_CUDA_FORCE_MMQ:    no
+ggml_cuda_init: GGML_CUDA_FORCE_CUBLAS: no
+ggml_cuda_init: found 1 CUDA devices:
+  Device 0: NVIDIA GeForce RTX 5080, compute capability 12.0, VMM: yes
+whisper_init_with_params_no_state: devices    = 2
+whisper_init_with_params_no_state: backends   = 2
+whisper_model_load: loading model
+whisper_model_load: n_vocab       = 51865
+whisper_model_load: n_audio_ctx   = 1500
+whisper_model_load: n_audio_state = 384
+whisper_model_load: n_audio_head  = 6
+whisper_model_load: n_audio_layer = 4
+whisper_model_load: n_text_ctx    = 448
+whisper_model_load: n_text_state  = 384
+whisper_model_load: n_text_head   = 6
+whisper_model_load: n_text_layer  = 4
+whisper_model_load: n_mels        = 80
+whisper_model_load: ftype         = 1
+whisper_model_load: qntvr         = 0
+whisper_model_load: type          = 1 (tiny)
+whisper_model_load: adding 1608 extra tokens
+whisper_model_load: n_langs       = 99
+whisper_model_load:        CUDA0 total size =    77.11 MB
+whisper_model_load: model size    =    0.00 MB
+whisper_model_load: WARN no tensors loaded from model file - assuming empty model for testing
+whisper_backend_init_gpu: using CUDA0 backend
+whisper_init_state: kv self size  =    3.15 MB
+whisper_init_state: kv cross size =    9.44 MB
+whisper_init_state: kv pad  size  =    2.36 MB
+whisper_init_state: compute buffer (conv)   =   14.15 MB
+whisper_init_state: compute buffer (encode) =   64.79 MB
+whisper_init_state: compute buffer (cross)  =    3.88 MB
+whisper_init_state: compute buffer (decode) =   96.81 MB
+启动Socket.IO服务器，监听端口: 3000
+服务器已启动，监听端口: 3000
+服务已启动，按Ctrl+C退出
+等待客户端连接...
+
+[01:14:25] CPU: 0.0% (32核) | RAM: 327.3MB
+GPU: AMD Radeon(TM) Graphics | 使用率: 0.0% | GPU内存: 0.0MB/512.0MB (0.0%) | 温度: 0.0°C | 驱动版本: 32.0.13036.4
+[01:14:26] CPU: 0.0% (32核) | RAM: 327.6MB
+GPU: AMD Radeon(TM) Graphics | 使用率: 0.0% | GPU内存: 0.0MB/512.0MB (0.0%) | 温度: 0.0°C | 驱动版本: 32.0.13036.4
+[01:14:27] CPU: 0.0% (32核) | RAM: 327.6MB
+GPU: AMD Radeon(TM) Graphics | 使用率: 0.0% | GPU内存: 0.0MB/512.0MB (0.0%) | 温度: 0.0°C | 驱动版本: 32.0.13036.4
+[01:14:28] CPU: 0.0% (32核) | RAM: 327.6MB
+GPU: AMD Radeon(TM) Graphics | 使用率: 0.0% | GPU内存: 0.0MB/512.0MB (0.0%) | 温度: 0.0°C | 驱动版本: 32.0.13036.4

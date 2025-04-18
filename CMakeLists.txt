@@ -74,6 +74,10 @@ if(USE_GPU)
             # 检查库文件是否存在
             if(EXISTS "${NVAPI_LIB}")
                 message(STATUS "找到NVAPI库: ${NVAPI_LIB}")
+                # 添加HAVE_NVAPI定义
+                add_definitions(-DHAVE_NVAPI)
+                set(HAVE_NVAPI TRUE)
+                message(STATUS "启用HAVE_NVAPI定义")
             else()
                 message(WARNING "未找到NVAPI库: ${NVAPI_LIB}")
                 set(NVAPI_LIB "")
@@ -183,6 +187,10 @@ if(USE_GPU)
     # 如果找到了NVAPI库，链接它
     if(WIN32 AND DEFINED NVAPI_LIB AND EXISTS "${NVAPI_LIB}")
         target_link_libraries(autotalk PRIVATE ${NVAPI_LIB})
+        # 添加NVAPI相关的编译宏
+        if(HAVE_NVAPI)
+            target_compile_definitions(autotalk PRIVATE HAVE_NVAPI)
+        endif()
     endif()
 endif()
 

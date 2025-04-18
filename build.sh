@@ -156,6 +156,14 @@ else
     exit 1
 fi
 
+# 如果是GPU构建，创建自动启动脚本
+if [ "$USE_GPU" -eq 1 ]; then
+    # 创建一个批处理文件，自动启用GPU
+    echo '@echo off' > Release/run_with_gpu.bat
+    echo 'autotalk.exe --gpu %*' >> Release/run_with_gpu.bat
+    echo "创建了GPU启动脚本: run_with_gpu.bat"
+fi
+
 if [ "$SKIP_DEPS" -eq 0 ]; then
     echo "正在构建 libsndfile..."
 

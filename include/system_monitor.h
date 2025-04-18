@@ -46,8 +46,9 @@ struct CPUUsageData {
     float currentUsage;              // 当前使用率
     std::mutex mutex;
     int maxSamples;                  // 保存的最大样本数
+    int numCores;                    // CPU核心数
 
-    CPUUsageData(int maxSamples = 100) : maxSamples(maxSamples), currentUsage(0.0f) {}
+    CPUUsageData(int maxSamples = 100) : maxSamples(maxSamples), currentUsage(0.0f), numCores(0) {}
     
     // 删除复制构造函数和复制赋值运算符
     CPUUsageData(const CPUUsageData&) = delete;
@@ -57,13 +58,15 @@ struct CPUUsageData {
     CPUUsageData(CPUUsageData&& other) noexcept
         : usageHistory(std::move(other.usageHistory)),
           currentUsage(other.currentUsage),
-          maxSamples(other.maxSamples) {}
+          maxSamples(other.maxSamples),
+          numCores(other.numCores) {}
           
     CPUUsageData& operator=(CPUUsageData&& other) noexcept {
         if (this != &other) {
             usageHistory = std::move(other.usageHistory);
             currentUsage = other.currentUsage;
             maxSamples = other.maxSamples;
+            numCores = other.numCores;
         }
         return *this;
     }
@@ -84,6 +87,7 @@ struct GPUUsageData {
     float temperature;               // GPU温度(摄氏度)
     std::string gpuName;             // GPU名称
     std::string driverVersion;       // 驱动版本
+    int gpuIndex;                    // GPU索引
 
     GPUUsageData(int maxSamples = 100) : 
         maxSamples(maxSamples), 
@@ -94,7 +98,8 @@ struct GPUUsageData {
         memoryUsagePercent(0.0f),
         temperature(0.0f),
         gpuName("未知"),
-        driverVersion("未知") {}
+        driverVersion("未知"),
+        gpuIndex(0) {}
     
     // 删除复制构造函数和复制赋值运算符
     GPUUsageData(const GPUUsageData&) = delete;
@@ -111,7 +116,8 @@ struct GPUUsageData {
           memoryUsagePercent(other.memoryUsagePercent),
           temperature(other.temperature),
           gpuName(std::move(other.gpuName)),
-          driverVersion(std::move(other.driverVersion)) {}
+          driverVersion(std::move(other.driverVersion)),
+          gpuIndex(other.gpuIndex) {}
           
     GPUUsageData& operator=(GPUUsageData&& other) noexcept {
         if (this != &other) {
@@ -125,9 +131,51 @@ struct GPUUsageData {
             temperature = other.temperature;
             gpuName = std::move(other.gpuName);
             driverVersion = std::move(other.driverVersion);
+            gpuIndex = other.gpuIndex;
         }
         return *this;
     }
+    
+    // 不带mutex的数据拷贝方法
+    void copyDataFrom(const GPUUsageData& other) {
+        usageHistory = other.usageHistory;
+        currentUsage = other.currentUsage;
+        maxSamples = other.maxSamples;
+        available = other.available;
+        memoryUsageMB = other.memoryUsageMB;
+        memoryTotalMB = other.memoryTotalMB;
+        memoryUsagePercent = other.memoryUsagePercent;
+        temperature = other.temperature;
+        gpuName = other.gpuName;
+        driverVersion = other.driverVersion;
+        gpuIndex = other.gpuIndex;
+    }
+    
+    // 创建不包含互斥锁的副本
+    GPUUsageData createCopy() const {
+        GPUUsageData copy;
+        copy.usageHistory = this->usageHistory;
+        copy.currentUsage = this->currentUsage;
+        copy.maxSamples = this->maxSamples;
+        copy.available = this->available;
+        copy.memoryUsageMB = this->memoryUsageMB;
+        copy.memoryTotalMB = this->memoryTotalMB;
+        copy.memoryUsagePercent = this->memoryUsagePercent;
+        copy.temperature = this->temperature;
+        copy.gpuName = this->gpuName;
+        copy.driverVersion = this->driverVersion;
+        copy.gpuIndex = this->gpuIndex;
+        return copy;
+    }
+};
+
+// 多GPU信息结构体
+struct MultiGPUInfo {
+    std::vector<GPUUsageData> gpus;
+    std::mutex mutex;
+    int activeGPU; // Whisper正在使用的GPU索引
+    
+    MultiGPUInfo() : activeGPU(-1) {}
 };
 
 class SystemMonitor {
@@ -150,6 +198,12 @@ public:
     float getGPUTemperature() const;     // 获取GPU温度
     std::string getGPUName() const;      // 获取GPU名称
     std::string getGPUDriverVersion() const; // 获取GPU驱动版本
+
+    // 添加多GPU相关的getter方法
+    int getGPUCount() const;                      // 获取GPU数量
+    std::vector<GPUUsageData> getAllGPUs() const; // 获取所有GPU信息
+    int getActiveGPU() const;                     // 获取Whisper正在使用的GPU索引
+    void setActiveGPU(int index);                 // 设置Whisper正在使用的GPU索引
 
     // 初始化监控系统
     bool initialize();
@@ -181,6 +235,9 @@ public:
     // 停止监控线程
     void stopMonitoring();
 
+    // 添加获取CPU核心数的方法
+    int getCPUCores() const;
+
 private:
     void monitorThread();
     float calculateCpuUsage();
@@ -207,4 +264,6 @@ private:
     PDH_HQUERY gpuQuery_;
     PDH_HCOUNTER gpuCounter_;
 #endif
+
+    MultiGPUInfo multiGPUInfo_; // 多GPU信息
 }; 
