@@ -17,7 +17,8 @@
 SystemMonitor::SystemMonitor() 
     : running_(false)
     , cpuUsage_(0.0f)
-    , memoryUsage_(0.0f) {
+    , memoryUsage_(0.0f)
+    , memoryUsageMB_(0.0f) {
 }
 
 SystemMonitor::~SystemMonitor() {
@@ -76,6 +77,14 @@ bool SystemMonitor::initialize() {
 #endif
 
     return true;
+}
+
+void SystemMonitor::update() {
+    cpuUsage_ = calculateCpuUsage();
+    memoryUsage_ = calculateMemoryUsage();
+    memoryUsageMB_ = calculateMemoryUsageMB();
+    updateCPUUsage();
+    updateGPUUsage();
 }
 
 void SystemMonitor::updateAudioSignal(const std::vector<float>& audioData) {
@@ -230,10 +239,15 @@ float SystemMonitor::getMemoryUsage() const {
     return memoryUsage_;
 }
 
+float SystemMonitor::getMemoryUsageMB() const {
+    return memoryUsageMB_;
+}
+
 void SystemMonitor::monitorThread() {
     while (running_) {
         cpuUsage_ = calculateCpuUsage();
         memoryUsage_ = calculateMemoryUsage();
+        memoryUsageMB_ = calculateMemoryUsageMB();
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }
@@ -294,6 +308,18 @@ float SystemMonitor::calculateMemoryUsage() {
         if (GlobalMemoryStatusEx(&memInfo)) {
             return static_cast<float>(pmc.WorkingSetSize) / static_cast<float>(memInfo.ullTotalPhys) * 100.0f;
         }
+    }
+    return 0.0f;
+#else
+    return 0.0f; // 在非 Windows 系统上暂时返回 0
+#endif
+}
+
+float SystemMonitor::calculateMemoryUsageMB() {
+#ifdef _WIN32
+    PROCESS_MEMORY_COUNTERS_EX pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
+        return static_cast<float>(pmc.WorkingSetSize) / (1024.0f * 1024.0f); // 转换为MB
     }
     return 0.0f;
 #else

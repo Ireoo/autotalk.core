@@ -47,7 +47,6 @@ if(USE_GPU)
     
     # 设置CUDA相关参数，确保和Whisper.cpp使用相同设置
     set(GGML_CUDA ON)
-    # 移除已弃用的WHISPER_CUBLAS设置
 endif()
 
 # 设置vcpkg工具链
@@ -69,17 +68,6 @@ set(ENABLE_MPEG OFF CACHE BOOL "Enable MPEG support")
 # 添加 libsndfile 作为子项目
 add_subdirectory(third_party/libsndfile)
 
-# 设置PortAudio编译选项
-option(PA_BUILD_SHARED "Build PortAudio shared library" ON)
-option(PA_BUILD_STATIC "Build PortAudio static library" OFF)
-option(PA_BUILD_EXAMPLES "Build PortAudio examples" OFF)
-option(PA_BUILD_TESTS "Build PortAudio tests" OFF)
-option(PA_DLL_LINK_WITH_STATIC_RUNTIME "Link PortAudio DLL with static runtime libraries" OFF)
-option(PA_ENABLE_DEBUG_OUTPUT "Enable debug output for PortAudio" OFF)
-
-# 添加PortAudio作为子项目
-add_subdirectory(portaudio)
-
 # 设置whisper.cpp相关选项
 if(USE_GPU)
     # 使用新的选项替代已弃用的WHISPER_CUBLAS
@@ -99,11 +87,13 @@ endif()
 # 添加whisper.cpp作为子目录
 add_subdirectory(whisper.cpp)
 
+# 查找并链接Threads库
+find_package(Threads REQUIRED)
+
 # 包含头文件目录
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/whisper.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/portaudio/include
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libsndfile/include
 )
 
@@ -117,33 +107,43 @@ set(MONITORING_SOURCES
     src/system_monitor.cpp
 )
 
+# 添加socket.io服务器源文件
+set(SOCKETIO_SOURCES
+    src/audio_server.cpp
+)
+
 # 添加主程序源文件
 add_executable(autotalk 
     src/main.cpp
-    src/audio_capture.cpp
     ${MONITORING_SOURCES}
+    ${SOCKETIO_SOURCES}
 )
 
 # 设置编译选项
 if(MSVC)
     target_compile_options(autotalk PRIVATE /utf-8 /EHsc)
+    add_definitions(-D_WIN32_WINNT=0x0601)
 endif()
 
 # 链接库
 target_link_libraries(autotalk PRIVATE
-    portaudio
     whisper
     sndfile
+    ${CMAKE_THREAD_LIBS_INIT}
 )
+
+# Windows平台特定链接
+if(WIN32)
+    target_link_libraries(autotalk PRIVATE 
+        pdh 
+        ws2_32 
+        iphlpapi
+    )
+endif()
 
 # 如果启用GPU，链接CUDA库
 if(USE_GPU)
     target_link_libraries(autotalk PRIVATE ${CUDA_LIBRARIES})
-endif()
-
-# Windows特定链接
-if(WIN32)
-    target_link_libraries(autotalk PRIVATE pdh)
 endif()
 
 # 复制模型目录

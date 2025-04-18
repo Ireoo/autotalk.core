@@ -1,0 +1,46 @@
+{
+  "name": "autotalk-client",
+  "private": true,
+  "version": "0.1.0",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "electron:dev": "vite build --watch & electron .",
+    "electron:build": "vite build && electron-builder"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.7.2",
+    "vue": "^3.3.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.6.3",
+    "@vitejs/plugin-vue": "^4.3.4",
+    "electron": "^26.2.1",
+    "electron-builder": "^24.6.4",
+    "typescript": "^5.2.2",
+    "vite": "^4.4.9",
+    "vue-tsc": "^1.8.11"
+  },
+  "build": {
+    "appId": "com.autotalk.client",
+    "productName": "AutoTalk Client",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+} 

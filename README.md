@@ -1,136 +1,113 @@
-# AutoTalk - 实时语音转文字工具
+# AutoTalk 音频实时识别系统
 
-这是一个基于whisper.cpp库的实时语音转文字工具，可以实时捕获麦克风输入并将语音转换为文字。
+AutoTalk是一个基于Whisper和Socket.IO的实时语音识别系统，支持实时音频流处理和语音识别。系统包含服务端和桌面客户端两部分。
 
-## 功能特点
+## 功能特性
 
-- 实时麦克风音频捕获
-- 使用whisper.cpp进行高质量的语音识别
-- 支持中文识别
-- 低延迟处理
-- 跨平台支持
+- 基于Whisper的高精度语音识别
+- 使用Socket.IO进行实时音频数据传输
+- 同时支持实时识别结果和完整句子识别结果
+- 支持GPU加速（可选）
+- 跨平台桌面客户端应用
 
 ## 系统要求
 
+- Windows/Linux/macOS
 - C++17兼容的编译器
-- CMake 3.14+
-- PortAudio库
-- 支持多线程
+- CMake 3.10+
+- Node.js和npm（用于客户端开发）
 
-## 安装步骤
+## 快速开始
 
-### 1. 克隆仓库
+### 编译服务端
 
-```bash
-git clone https://github.com/yourusername/autotalk.git
-cd autotalk
-```
-
-### 2. 安装依赖
-
-#### Windows
-
-在Windows上，需要安装PortAudio库。可以通过Chocolatey或MSYS2安装：
-
-使用Chocolatey：
-```bash
-choco install portaudio
-```
-
-使用MSYS2：
-```bash
-pacman -S mingw-w64-x86_64-portaudio
-```
-
-#### Linux (Ubuntu/Debian)
+使用build.sh脚本一键编译服务端：
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y portaudio19-dev
+# 使用CPU版本编译
+./build.sh
+
+# 使用GPU加速编译（需要CUDA）
+./build.sh --gpu
+
+# 跳过依赖项下载
+./build.sh --skip-deps
 ```
 
-#### macOS
+### 运行服务端
 
-使用Homebrew：
-```bash
-brew install portaudio
-```
-
-### 3. 下载Whisper.cpp模型
-
-项目提供了一个脚本来下载模型文件：
-
-```bash
-cd scripts
-./download_model.sh small  # 可选: tiny, base, small, medium, large
-cd ..
-```
-
-或者手动从[Whisper.cpp仓库](https://github.com/ggerganov/whisper.cpp)下载模型文件，并放置在`models`目录中。
-
-推荐使用以下模型之一：
-- `ggml-tiny.bin` - 最小模型，适合低配置设备
-- `ggml-base.bin` - 平衡大小和准确性
-- `ggml-small.bin` - 提供较好的准确性
-- `ggml-medium.bin` - 高准确性模型
-
-### 4. 构建项目
+编译完成后，可以通过以下命令运行服务端：
 
 ```bash
-mkdir build && cd build
-cmake ..
-cmake --build . --config Release
+./Release/autotalk.exe --port 3000 --model models/ggml-base.bin
 ```
 
-## 使用方法
+参数说明：
+- `--port <端口号>`: 指定服务器监听端口（默认：3000）
+- `--model <模型路径>`: 指定使用的Whisper模型路径
+- `--list`: 列出已安装的模型文件
+- `--help`: 显示帮助信息
+
+### 编译和运行客户端
+
+客户端基于Electron和Vue.js开发，使用以下命令启动：
 
 ```bash
-./autotalk ../models/ggml-small.bin
+cd client
+npm install         # 安装依赖
+npm run electron:dev  # 开发模式启动
+npm run electron:build # 构建客户端应用
 ```
 
-运行程序后，它将开始捕获麦克风输入并实时转换为文字。按Ctrl+C退出程序。
+## 项目结构
 
-## 自定义配置
-
-你可以通过修改源代码中的常量来调整程序的行为：
-
-- `SAMPLE_RATE` - 音频采样率（默认16kHz）
-- `FRAME_SIZE` - 每帧的样本数（默认512）
-- `MAX_BUFFER_SIZE` - 最大音频缓冲区大小（默认30秒）
-- `AUDIO_CONTEXT_SIZE` - 音频上下文大小（默认3秒）
-
-这些常量定义在`src/main.cpp`文件中：
-
-```cpp
-constexpr int SAMPLE_RATE = 16000;
-constexpr int FRAME_SIZE = 512;
-constexpr int MAX_BUFFER_SIZE = SAMPLE_RATE * 30; // 30秒的音频
-constexpr int AUDIO_CONTEXT_SIZE = SAMPLE_RATE * 3; // 3秒的上下文
+```
+autotalk/
+├── build.sh                # 构建脚本
+├── CMakeLists.txt          # CMake配置文件
+├── include/                # 头文件目录
+│   ├── audio_server.h      # 音频服务器接口
+│   └── system_monitor.h    # 系统监控接口
+├── src/                    # 源代码目录
+│   ├── main.cpp            # 主程序入口
+│   ├── audio_server.cpp    # 音频服务器实现
+│   └── system_monitor.cpp  # 系统监控实现
+├── client/                 # 客户端应用
+│   ├── package.json        # 客户端依赖配置
+│   ├── electron/           # Electron主进程代码
+│   └── src/                # 客户端源代码
+├── models/                 # Whisper模型目录
+└── third_party/            # 第三方库
+    ├── socket.io-cpp/      # Socket.IO C++库
+    └── libsndfile/         # 音频文件处理库
 ```
 
-## 问题排查
+## 使用说明
 
-1. 如果遇到音频设备初始化失败，请确保麦克风已正确连接并设置为默认输入设备。
-2. 如果识别质量不佳，可以尝试使用更大的模型文件（medium或large）。
-3. 对于高CPU使用率问题，可以在代码中降低以下值：
-   ```cpp
-   wparams.n_threads = 4;  // 减少线程数量以降低CPU使用率
-   ```
+1. 启动服务端，确保指定了正确的端口和模型路径
+2. 启动客户端应用
+3. 在客户端中输入服务端地址（例如：http://localhost:3000）
+4. 点击"连接服务器"按钮
+5. 选择音频输入设备
+6. 点击"开始识别"按钮开始实时语音识别
+7. 识别结果将实时显示在界面上
 
-## 开发
+## Socket.IO接口说明
 
-项目结构：
-- `src/` - 源代码文件
-- `include/` - 头文件
-- `models/` - Whisper模型文件
-- `scripts/` - 辅助脚本
-- `whisper.cpp/` - Whisper.cpp库代码
+服务端提供以下Socket.IO事件：
+
+- `server_ready`: 服务器准备就绪通知
+- `recognition_result`: 发送识别结果（带前缀L:或T:）
+
+客户端提供以下Socket.IO事件：
+
+- `audio_data`: 发送音频数据到服务器
+
+## 识别结果格式
+
+- `L:文本内容`: 实时识别的临时结果
+- `T:文本内容`: 识别的完整句子结果
 
 ## 许可证
 
-本项目使用MIT许可证。详见LICENSE文件。
-
-## 鸣谢
-
-- [whisper.cpp](https://github.com/ggerganov/whisper.cpp) - OpenAI Whisper模型的C/C++实现
-- [PortAudio](http://www.portaudio.com/) - 跨平台音频I/O库 
+本项目采用MIT许可证。查看LICENSE文件获取更多信息。 

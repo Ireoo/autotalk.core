@@ -19,7 +19,7 @@
 #include <future>
 #include <condition_variable>
 
-#include "../include/audio_capture.h"
+#include "../include/audio_server.h"
 #include "../include/system_monitor.h"
 #include "../whisper.cpp/include/whisper.h"
 
@@ -31,19 +31,13 @@ constexpr int MAX_BUFFER_SIZE = SAMPLE_RATE * 30;   // 30 seconds of audio
 constexpr int AUDIO_CONTEXT_SIZE = SAMPLE_RATE * 1; // 3 seconds context
 constexpr int MIN_AUDIO_SAMPLES = SAMPLE_RATE;      // 至少1秒的音频数据
 
-// static const std::regex sentence_end_regex(R"([.!?。！？~])");
-
 // Global variables
 std::atomic<bool> running(true);
 std::deque<float> audioBuffer;
 std::mutex bufferMutex;
 whisper_context *ctx = nullptr;
 SystemMonitor *systemMonitor = nullptr;
-
-// 使用标准队列替代 boost 无锁队列
-const size_t AUDIO_QUEUE_SIZE = 1024; // 队列大小
-std::queue<std::vector<float>> audioQueue;
-std::mutex audioQueueMutex;
+AudioServer *audioServer = nullptr;
 
 // 音频处理相关的全局变量
 std::vector<float> audio_chunk;
@@ -54,84 +48,32 @@ const int MAX_REPEAT_COUNT = 3;
 int REPEAT_COUNT = 0;
 std::string REPEAT_TEXT;
 
-// bool is_append = false;
-// std::vector<float> repeat_audio;
 static const std::regex pattern(R"(。+$)", std::regex::optimize);
 static const std::regex pattern_dou(R"(^[,，]+)", std::regex::optimize);
 std::string last_recognized_text;
+
 // Signal handler for Ctrl+C
 void signalHandler(int signal)
 {
     if (signal == SIGINT)
     {
         running = false;
-        std::cout << "\n停止录音并退出..." << std::endl;
+        std::cout << "\n停止服务并退出..." << std::endl;
     }
 }
 
 // Audio data processing callback
 void processAudio(const std::vector<float> &buffer)
 {
-    // 使用互斥锁保护队列操作
-    std::lock_guard<std::mutex> lock(audioQueueMutex);
-    if (audioQueue.size() < AUDIO_QUEUE_SIZE)
+    std::lock_guard<std::mutex> lock(bufferMutex);
+
+    // 将新的音频数据添加到缓冲区
+    audioBuffer.insert(audioBuffer.end(), buffer.begin(), buffer.end());
+
+    // 限制缓冲区大小
+    if (audioBuffer.size() > MAX_BUFFER_SIZE)
     {
-        audioQueue.push(buffer);
-    }
-}
-
-void ClearConsoleBlock(HANDLE hConsole, int startRow, int lineCount, int width)
-{
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    GetConsoleScreenBufferInfo(hConsole, &csbi);
-    DWORD written;
-    for (int i = 0; i < lineCount; ++i)
-    {
-        COORD coord = {0, startRow + i};
-        FillConsoleOutputCharacter(hConsole, ' ', width, coord, &written);
-        // 可选：填充当前行的属性（颜色等）
-        FillConsoleOutputAttribute(hConsole, csbi.wAttributes, width, coord, &written);
-    }
-}
-
-void clearConsole(std::string txt, bool _lines = true)
-{
-    if (_lines)
-    {
-        // 获取控制台句柄及宽度
-        HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-        CONSOLE_SCREEN_BUFFER_INFO csbi;
-        GetConsoleScreenBufferInfo(hConsole, &csbi);
-        int consoleWidth = csbi.dwSize.X;
-
-        // 将 recognized_text 分割为多行
-        std::istringstream iss(txt);
-        std::vector<std::string> lines;
-        std::string line;
-        while (std::getline(iss, line))
-        {
-            lines.push_back(line);
-        }
-
-        // 假设 recognized_text 原来打印的位置从当前行开始，
-        // 保存当前光标行号作为开始行（这里简单示例，实际需要精确控制光标）
-        int startRow = csbi.dwCursorPosition.Y;
-
-        // 清除 recognized_text 占据的所有行
-        ClearConsoleBlock(hConsole, startRow, lines.size(), consoleWidth);
-
-        // 移动光标到开始行，并重新打印新的 recognized_text
-        COORD newPos = {0, (SHORT)startRow};
-        SetConsoleCursorPosition(hConsole, newPos);
-        std::cout << txt << std::flush;
-    }
-    else
-    {
-        CONSOLE_SCREEN_BUFFER_INFO csbi;
-        GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-        int consoleWidth = csbi.dwSize.X;
-
-        std::cout << "\r" << std::string(consoleWidth, ' ') << "\r" << txt << std::flush;
+        audioBuffer.erase(audioBuffer.begin(), audioBuffer.begin() + (audioBuffer.size() - MAX_BUFFER_SIZE));
     }
 }
 
@@ -185,7 +127,7 @@ void processSpeechRecognition()
                 auto now_time = std::chrono::system_clock::to_time_t(now);
                 std::stringstream ss;
                 ss << std::put_time(std::localtime(&now_time), "%Y-%m-%d-%H-%M-%S");
-                auto timestamp = ss.str();
+                std::string timestamp = ss.str();
 
                 // 复制音频数据以避免异步访问问题
                 std::vector<float> audio_copy;
@@ -194,342 +136,261 @@ void processSpeechRecognition()
                     audio_copy = audio_chunk;
                 }
 
-                // std::vector<float>::const_iterator audio_end = audio_copy.end();
-
                 if (whisper_full(ctx, wparams, audio_copy.data(), audio_copy.size()) == 0)
                 {
-                    const int n_segments = whisper_full_n_segments(ctx);
+                    // 处理每个段落的识别结果
+                    int num_segments = whisper_full_n_segments(ctx);
                     std::string recognized_text;
-                    std::string recognized_text_all;
-                    bool end = false;
-                    bool end_end = false;
-                    float end_time = audio_copy.size() / SAMPLE_RATE * 1000;
-                    std::string last_token = "。";
-                    // std::cout << end_i << std::endl;
-                    for (int i = 0; i < n_segments; ++i)
-                    {
-                        // 输出每个token的时间戳信息
-                        std::string str_token_total;
-                        const int n_tokens = whisper_full_n_tokens(ctx, i);
-                        for (int j = 0; j < n_tokens; ++j)
-                        {
-                            const int token = whisper_full_get_token_id(ctx, i, j);
-                            const char *token_text = whisper_token_to_str(ctx, token);
+                    std::string full_text;
 
-                            // 获取token的时间戳数据
-                            whisper_token_data token_data = whisper_full_get_token_data(ctx, i, j);
-
-                            // 以毫秒为单位输出时间戳
-                            float time_start_ms = token_data.t0 * 10.0f;
-                            float time_end_ms = token_data.t1 * 10.0f;
-
-                            std::string str_token(token_text);
-                            // std::string ju("。");
-
-                            // std::cout << "<TOKEN> '" << str_token << "' ["
-                            //           << time_start_ms << "ms - " << time_end_ms << "ms]" << std::endl;
-
-                            // std::string str_token(token_text);
-                            str_token_total += str_token;
-                            last_token = str_token_total;
-                            if (str_token_total.length() > 3)
-                            {
-                                last_token = str_token_total.substr(str_token_total.length() - 3);
-                            }
-
-                            if (str_token == "。" || last_token == "。" || last_token == "？")
-                            {
-                                if (last_token == "？")
-                                {
-                                    recognized_text = recognized_text.substr(0, recognized_text.length() - 2);
-                                }
-                                else if (last_token == "。")
-                                {
-                                    // recognized_text = recognized_text.substr(0, recognized_text.length() - 3);
-                                }
-
-                                end_time = time_end_ms;
-                                // std::cout << j << " - " << n_tokens - 2 << std::endl;
-                                if (j != n_tokens - 2)
-                                {
-                                    end = true;
-                                }
-                                else
-                                {
-                                    end = true;
-                                    end_end = true;
-                                }
-                                break;
-                            }
-                            else if (str_token != "[_BEG_]" && !end)
-                            {
-
-                                recognized_text += str_token;
-                            }
-                        }
-                        if (end)
-                        {
-                            break;
-                        }
-                    }
-                    if (!end_end)
-                    {
-                        recognized_text += last_token;
-                    }
-                    else
-                    {
-                        recognized_text += "...";
-                    }
-                    // std::cout << end_i << std::endl;
-                    for (int i = 0; i < n_segments; ++i)
+                    for (int i = 0; i < num_segments; i++)
                     {
                         const char *text = whisper_full_get_segment_text(ctx, i);
-
-                        if (text[0] != '\0')
-                        {
-                            recognized_text_all += text;
-                        }
+                        recognized_text = text;
+                        full_text += recognized_text;
                     }
 
-                    recognized_text_all = std::regex_replace(recognized_text_all, pattern_dou, "");
-                    recognized_text = std::regex_replace(recognized_text, pattern_dou, "");
+                    std::regex punctuation_regex("[。？！，、：；]");
+                    std::sregex_iterator it(full_text.begin(), full_text.end(), punctuation_regex);
+                    std::sregex_iterator end;
 
-                    recognized_text_all = std::regex_replace(recognized_text_all, pattern, "...");
+                    // 计算标点符号数量
+                    size_t punctuation_count = std::distance(it, end);
 
-                    last_recognized_text = recognized_text;
+                    // 如果有足够的标点符号或文本足够长，认为这是一个完整的句子
+                    bool is_complete_sentence = punctuation_count >= 2 || full_text.length() > 30;
 
-                    if (std::regex_search(recognized_text, std::regex("^(\\.)")))
+                    // 发送实时识别结果（带L:前缀）
+                    if (!full_text.empty())
                     {
-
-                        if (running)
+                        if (audioServer)
                         {
-                            // std::lock_guard<std::mutex> lock(bufferMutex);
-                            // if (audio_chunk.size() >= audio_copy.size())
-                            // {
-                            //     audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
-                            // } else {
-                            //     audio_chunk.clear();
-                            // }
-                            clearConsole("[" + timestamp + "]: ...", false);
+                            audioServer->sendLiveResult(full_text);
                         }
-                    }
-                    else if (running)
-                    {
-                        clearConsole("[" + timestamp + "]: " + recognized_text_all, false);
-                        // std::cout << "[" << timestamp << "]: " << recognized_text_all << std::flush;
 
-                        if (std::regex_search(recognized_text, std::regex("[。！？]$")))
+                        std::cout << "L:" << full_text << std::endl;
+                    }
+
+                    // 如果是完整句子，发送完整识别结果（带T:前缀）
+                    if (is_complete_sentence && !full_text.empty())
+                    {
+                        if (full_text != last_recognized_text)
                         {
-                            if (recognized_text_all.length() > recognized_text.length() + 30)
+                            if (audioServer)
                             {
-                                std::lock_guard<std::mutex> lock(bufferMutex);
-                                if (audio_chunk.size() >= audio_copy.size())
-                                {
-                                    audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + end_time / 1000 * SAMPLE_RATE);
-                                }
-                                else
-                                {
-                                    audio_chunk.clear();
-                                }
-                                // std::cout << "<KEYWORD>";
-                                // 获取控制台句柄及宽度
-
-                                clearConsole("[" + timestamp + "]: " + recognized_text, false);
-                                std::cout << std::endl;
-                                clearConsole("[" + timestamp + "]: " + recognized_text_all.substr(recognized_text_all.length() - recognized_text.length()), false);
+                                audioServer->sendCompleteResult(full_text);
                             }
+
+                            std::cout << "T:" << full_text << std::endl;
+                            last_recognized_text = full_text;
+
+                            // 清空音频缓冲区，开始新的识别
+                            std::lock_guard<std::mutex> lock(bufferMutex);
+                            audio_chunk.clear();
                         }
                     }
-
-                    // std::lock_guard<std::mutex> lock(bufferMutex);
-                    // audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
-                    // std::cout << std::endl;
-                    // size_t keep_size = SAMPLE_RATE * 10;
-                    // if (audio_chunk.size() > keep_size)
-                    // {
-                    //     std::lock_guard<std::mutex> lock(bufferMutex);
-                    //     audio_chunk.erase(audio_chunk.begin(), audio_chunk.begin() + audio_copy.size());
-                    //     // audio_chunk.erase(audio_chunk.begin(), audio_chunk.end() - keep_size);
-                    //     std::cout << "<TIME>";
-                    //     if (recognized_text != "...")
-                    //     {
-                    //         std::cout << std::endl;
-                    //     }
-                    // }
                 }
             }
             catch (const std::exception &e)
             {
-                std::cerr << "语音识别处理错误: " << e.what() << std::endl;
-            }
-            catch (...)
-            {
-                std::cerr << "语音识别处理发生未知错误" << std::endl;
+                std::cerr << "语音识别异常: " << e.what() << std::endl;
             }
         }
 
+        // 从主缓冲区更新音频块
+        {
+            std::lock_guard<std::mutex> lock(bufferMutex);
+            if (audioBuffer.size() >= MIN_AUDIO_SAMPLES)
+            {
+                audio_chunk.assign(audioBuffer.begin(), audioBuffer.end());
+            }
+        }
+
+        // 避免CPU占用过高
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
-// 音频处理线程函数
 void processAudioStream()
 {
     while (running)
     {
-        std::vector<float> currentAudio;
-        bool hasData = false;
-
-        {
-            std::lock_guard<std::mutex> lock(audioQueueMutex);
-            if (!audioQueue.empty())
-            {
-                currentAudio = audioQueue.front();
-                audioQueue.pop();
-                hasData = true;
-            }
-        }
-
-        if (hasData)
-        {
-            std::lock_guard<std::mutex> lock(bufferMutex);
-            audio_chunk.insert(audio_chunk.end(), currentAudio.begin(), currentAudio.end());
-        }
-        else
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 
 int main(int argc, char **argv)
 {
-    // 设置信号处理
-    signal(SIGINT, signalHandler);
-    signal(SIGTERM, signalHandler);
-
-    // 解析命令行参数
-    int selectedMic = 0; // 初始值设为-1，表示未指定
-    std::string modelPath = "models/ggml-medium-zh.bin";
-    bool listDevices = false;
-
-    for (int i = 1; i < argc; i++)
-    {
-        std::string arg = argv[i];
-        if (arg == "--mic" && i + 1 < argc)
-        {
-            selectedMic = std::stoi(argv[++i]);
-        }
-        else if (arg == "--model" && i + 1 < argc)
-        {
-            modelPath = argv[++i];
-        }
-        else if (arg == "--list")
-        {
-            listDevices = true;
-        }
-    }
-
 // 设置中文控制台输出
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
 #endif
+    // 注册信号处理函数
+    signal(SIGINT, signalHandler);
 
-    // 初始化音频捕获
-    AudioCapture audioCapture;
-    if (!audioCapture.initialize())
+    // 输出参数信息
+    std::cout << "=== 语音实时识别系统 ===" << std::endl;
+
+    int server_port = 3000;
+    bool list_models = false;
+    std::string model_path = "models/ggml-base.bin";
+
+    // 解析命令行参数
+    for (int i = 1; i < argc; i++)
     {
-        std::cerr << "无法初始化音频捕获" << std::endl;
-        return 1;
+        if (strcmp(argv[i], "--port") == 0 && i + 1 < argc)
+        {
+            server_port = std::stoi(argv[i + 1]);
+            i++;
+        }
+        else if (strcmp(argv[i], "--model") == 0 && i + 1 < argc)
+        {
+            model_path = argv[i + 1];
+            i++;
+        }
+        else if (strcmp(argv[i], "--list") == 0)
+        {
+            list_models = true;
+        }
+        else if (strcmp(argv[i], "--help") == 0)
+        {
+            std::cout << "使用方法: " << argv[0] << " [选项]" << std::endl;
+            std::cout << "选项:" << std::endl;
+            std::cout << "  --port <端口>   指定服务器监听端口 (默认: 3000)" << std::endl;
+            std::cout << "  --model <路径>  指定Whisper模型路径 (默认: models/ggml-base.bin)" << std::endl;
+            std::cout << "  --list          列出已安装的模型" << std::endl;
+            std::cout << "  --help          显示此帮助信息" << std::endl;
+            return 0;
+        }
     }
 
-    // 启用环回捕获
-    audioCapture.setLoopbackCapture(true);
-
-    // 获取并显示可用的输入设备
-    auto devices = audioCapture.getInputDevices();
-    std::cout << "\n可用的输入设备：" << std::endl;
-    for (const auto &device : devices)
+    // 列出模型
+    if (list_models)
     {
-        std::cout << device.first << ": " << device.second << std::endl;
-    }
-
-    // 如果指定了 --list 参数，显示设备列表后退出
-    if (listDevices)
-    {
+        std::cout << "模型目录: models/" << std::endl;
+        try
+        {
+            if (std::filesystem::exists("models") && std::filesystem::is_directory("models"))
+            {
+                bool found = false;
+                for (const auto &entry : std::filesystem::directory_iterator("models"))
+                {
+                    if (entry.path().extension() == ".bin")
+                    {
+                        std::cout << "  " << entry.path().filename().string() << std::endl;
+                        found = true;
+                    }
+                }
+                if (!found)
+                {
+                    std::cout << "  未找到模型文件" << std::endl;
+                }
+            }
+            else
+            {
+                std::cout << "  模型目录不存在" << std::endl;
+            }
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << "列出模型时出错: " << e.what() << std::endl;
+        }
         return 0;
     }
 
-    // 如果没有指定麦克风，使用列表中的第一个设备
-    if (selectedMic == -1)
+    // 检查模型文件是否存在
+    if (!std::filesystem::exists(model_path))
     {
-        if (!devices.empty())
-        {
-            selectedMic = devices[0].first;
-            std::cout << "\n使用默认输入设备：" << selectedMic << " (" << devices[0].second << ")" << std::endl;
-        }
-        else
-        {
-            std::cerr << "未找到可用的输入设备" << std::endl;
-            return 1;
-        }
-    }
-    else
-    {
-        std::cout << "\n使用指定的输入设备：" << selectedMic << std::endl;
-    }
-
-    std::cout << "正在初始化语音识别系统..." << std::endl;
-
-    // 初始化 whisper 模型
-    ctx = whisper_init_from_file(modelPath.c_str());
-    if (!ctx)
-    {
-        std::cerr << "无法加载模型，请确保模型文件 " << modelPath << " 存在" << std::endl;
+        std::cerr << "错误: 未找到模型文件 " << model_path << std::endl;
+        std::cerr << "请将Whisper模型文件放在models目录下，或使用--model指定模型路径" << std::endl;
         return 1;
     }
 
     // 初始化系统监控
     systemMonitor = new SystemMonitor();
-    systemMonitor->start();
-
-    if (!audioCapture.setInputDevice(selectedMic))
+    if (!systemMonitor->initialize())
     {
-        std::cerr << "无法设置输入设备" << std::endl;
-        whisper_free(ctx);
+        std::cerr << "初始化系统监控失败" << std::endl;
         delete systemMonitor;
         return 1;
     }
 
-    // 启动音频处理线程
+    // 初始化Whisper上下文
+    std::cout << "正在加载Whisper模型: " << model_path << std::endl;
+    ctx = whisper_init_from_file(model_path.c_str());
+    if (ctx == nullptr)
+    {
+        std::cerr << "加载Whisper模型失败" << std::endl;
+        delete systemMonitor;
+        return 1;
+    }
+
+    // 初始化Socket.IO服务器
+    audioServer = new AudioServer();
+    if (!audioServer->initialize(server_port))
+    {
+        std::cerr << "初始化Socket.IO服务器失败" << std::endl;
+        whisper_free(ctx);
+        delete systemMonitor;
+        delete audioServer;
+        return 1;
+    }
+
+    // 启动服务器
+    std::cout << "启动Socket.IO服务器，监听端口: " << server_port << std::endl;
+    if (!audioServer->start(processAudio))
+    {
+        std::cerr << "启动Socket.IO服务器失败" << std::endl;
+        whisper_free(ctx);
+        delete systemMonitor;
+        delete audioServer;
+        return 1;
+    }
+
+    // 启动音频流处理线程
     std::thread processThread(processAudioStream);
+    // 启动语音识别线程
     std::thread recognitionThread(processSpeechRecognition);
 
-    // 启动音频捕获
-    if (!audioCapture.start([](const std::vector<float> &buffer)
-                            { processAudio(buffer); }))
+    std::cout << "服务已启动，按Ctrl+C退出" << std::endl;
+    std::cout << "等待客户端连接..." << std::endl;
+
+    // 等待信号处理函数设置running为false
+    while (running)
     {
-        std::cerr << "无法启动音频捕获" << std::endl;
-        running = false;
-        processThread.join();
-        recognitionThread.join();
-        whisper_free(ctx);
-        delete systemMonitor;
-        return 1;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        // 显示系统状态
+        systemMonitor->update();
+        std::cout << "\rCPU: " << std::fixed << std::setprecision(1)
+                  << systemMonitor->getCpuUsage() << "% | RAM: "
+                  << std::fixed << std::setprecision(1)
+                  << systemMonitor->getMemoryUsageMB() << "MB"
+                  << std::flush;
     }
 
-    std::cout << "\n系统已启动，正在进行实时语音识别..." << std::endl;
-    std::cout << "按 Ctrl+C 停止程序" << std::endl;
+    // 清理资源
+    std::cout << "正在关闭服务..." << std::endl;
 
-    // 等待所有线程结束
     processThread.join();
     recognitionThread.join();
 
-    // 清理资源
-    audioCapture.stop();
-    whisper_free(ctx);
-    delete systemMonitor;
+    if (audioServer)
+    {
+        audioServer->stop();
+        delete audioServer;
+    }
 
-    std::cout << "程序已停止" << std::endl;
+    if (ctx)
+    {
+        whisper_free(ctx);
+    }
+
+    if (systemMonitor)
+    {
+        delete systemMonitor;
+    }
+
+    std::cout << "服务已关闭" << std::endl;
     return 0;
 }

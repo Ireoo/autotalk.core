@@ -110,9 +110,13 @@ public:
     void stop();
     float getCpuUsage() const;
     float getMemoryUsage() const;
+    float getMemoryUsageMB() const; // 获取内存使用量（MB）
 
     // 初始化监控系统
     bool initialize();
+    
+    // 更新系统监控数据
+    void update();
 
     // 更新音频信号数据
     void updateAudioSignal(const std::vector<float>& audioData);
@@ -142,6 +146,7 @@ private:
     void monitorThread();
     float calculateCpuUsage();
     float calculateMemoryUsage();
+    float calculateMemoryUsageMB();
 
     AudioSignalData audioSignalData_;
     CPUUsageData cpuUsageData_;
@@ -151,6 +156,7 @@ private:
     std::mutex mutex_;
     std::atomic<float> cpuUsage_;
     std::atomic<float> memoryUsage_;
+    std::atomic<float> memoryUsageMB_;  // 内存使用量（MB）
     std::thread monitorThread_;
 
 #ifdef _WIN32

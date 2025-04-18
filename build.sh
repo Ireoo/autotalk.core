@@ -79,9 +79,10 @@ echo "当前工作目录: $(pwd)"
 
 # 检查并下载依赖项
 if [ "$SKIP_DEPS" -eq 0 ]; then
-    if [ ! -d "portaudio" ]; then
-        echo "正在下载PortAudio..."
-        git clone https://github.com/PortAudio/portaudio.git
+    # 移除旧的PortAudio
+    if [ -d "portaudio" ]; then
+        echo "移除旧的PortAudio..."
+        rm -rf portaudio
     fi
 
     if [ ! -d "whisper.cpp" ]; then
@@ -96,22 +97,22 @@ if [ "$SKIP_DEPS" -eq 0 ]; then
         git clone https://github.com/libsndfile/libsndfile.git third_party/libsndfile
     fi
 
-    echo "系统类型: $OSTYPE"
-
-    # 构建 PortAudio
-    echo "正在构建 PortAudio..."
-    cd portaudio
-    if [[ "$OSTYPE" == "linux-gnu" || "$OSTYPE" == "darwin" || "$OSTYPE" == "darwin23" ]]; then
-        ./configure
-        make -j$NUM_CORES
-    elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+    # 检查并下载 socket.io-cpp-server
+    if [ ! -d "third_party/socket.io-cpp" ]; then
+        echo "正在下载 socket.io-cpp..."
+        mkdir -p third_party
+        git clone https://github.com/socketio/socket.io-client-cpp.git third_party/socket.io-cpp
+        
+        # 构建 socket.io-cpp
+        cd third_party/socket.io-cpp
         mkdir -p build
         cd build
-        cmake -G "Visual Studio 17 2022" -A x64 -DPA_BUILD_SHARED=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..
+        cmake ..
         cmake --build . --config Release --parallel $NUM_CORES
-        cd ..
+        cd ../../..
     fi
-    cd ..
+
+    echo "系统类型: $OSTYPE"
 fi
 
 mkdir -p build
@@ -120,8 +121,6 @@ cd build
 # 准备CMake命令并根据GPU选项添加相关参数
 CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
       -DBUILD_SHARED_LIBS=ON \
-      -DPortAudio_DIR=\"$(pwd)/../portaudio/install/lib/cmake/portaudio\" \
-      -DCMAKE_PREFIX_PATH=\"$(pwd)/../portaudio/install\" \
       -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
 
 # 添加GPU选项
@@ -190,14 +189,11 @@ fi
 # 复制必要的DLL文件
 echo "正在复制DLL文件..."
 
-# 复制PortAudio DLL
-if [ -f "build/portaudio/Release/portaudio.dll" ]; then
-    cp -f build/portaudio/Release/portaudio.dll Release/
-elif [ -f "build/portaudio/Debug/portaudio.dll" ]; then
-    cp -f build/portaudio/Debug/portaudio.dll Release/
-else
-    echo "错误: 找不到portaudio.dll"
-    exit 1
+# 复制socket.io相关的库文件
+if [ -f "third_party/socket.io-cpp/build/Release/sioclient.dll" ]; then
+    cp -f third_party/socket.io-cpp/build/Release/sioclient.dll Release/
+    # 复制其他依赖库，如果有的话
+    cp -f third_party/socket.io-cpp/build/Release/*.dll Release/ 2>/dev/null || echo "没有额外的socket.io依赖DLL"
 fi
 
 # 复制whisper和其他必要的DLL文件
@@ -225,5 +221,13 @@ else
 fi
 echo "可执行文件位于 Release 目录中"
 
-# 运行程序
-# ./Release/autotalk.exe --list
+# 创建client目录并初始化Electron+Vite项目
+if [ ! -d "client" ]; then
+    echo "正在创建Electron+Vite客户端应用..."
+    npx create-vite client --template vue-ts
+    cd client
+    npm install
+    npm install electron electron-builder socket.io-client --save-dev
+    cd ..
+    echo "客户端应用创建完成！"
+fi
