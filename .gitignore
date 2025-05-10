@@ -1,0 +1,15 @@
+*.exe
+Release/
+build/
+models/
+glfw/
+imgui/
+*.tmp
+imgui.ini
+third_party/
+voice/
+portaudio/
+whisper.cpp/
+node_modules/
+electron-app/dist/
+.DS_Store

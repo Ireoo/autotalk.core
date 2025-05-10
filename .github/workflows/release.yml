@@ -1,0 +1,219 @@
+name: Release Build
+
+on:
+  push
+
+jobs:
+  ubuntu-gpu-build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        arch: [linux/arm64, linux/amd64]
+        cuda: [12.8.1-cudnn, 12.6.3-cudnn, 12.4.1-cudnn, 12.2.2-cudnn8]
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Build ${{ matrix.arch }}
+      if: matrix.arch == 'linux/arm64'
+      run: |
+        docker run --platform ${{ matrix.arch }} --rm \
+          -v ${{ github.workspace }}:/workspace \
+          -w /workspace nvidia/cuda:${{ matrix.cuda }}-devel-ubuntu22.04 /bin/sh -c '
+          # 在构建之前禁用 Accelerate 框架，因为这是 macOS 专用的
+          git clone https://github.com/ggml-org/whisper.cpp.git
+
+          echo "修改 whisper.cpp/ggml/src/ggml-cpu/vec.h 以避免 Accelerate 包含错误"
+          sed -i "/^#if defined(GGML_USE_ACCELERATE)/c\#if defined(GGML_USE_ACCELERATE) \&\& defined(__APPLE__)" whisper.cpp/ggml/src/ggml-cpu/vec.h
+          
+          cp -rf ./linux_arm64/CMakeLists.txt ./CMakeLists.txt
+          cp -rf ./linux_arm64/vec.h ./whisper.cpp/ggml/src/ggml-cpu/vec.h
+
+          # 开始构建
+          bash build_linux.sh --gpu'
+
+    - name: Build ${{ matrix.arch }}
+      if: matrix.arch == 'linux/amd64'
+      run: |
+        docker run --platform ${{ matrix.arch }} --rm \
+          -v ${{ github.workspace }}:/workspace \
+          -w /workspace nvidia/cuda:${{ matrix.cuda }}-devel-ubuntu22.04 /bin/sh -c '          
+          bash build_linux.sh --gpu'
+
+    - name: Build Project (Linux)
+      run: |
+        cd Release
+        ARCH_STR="${{ matrix.arch }}"
+        ARCH_NAME="${ARCH_STR//\//-}"
+        tar -czvf ../autotalk-gpu-${ARCH_NAME}-${{ matrix.cuda }}.tar.gz .
+        cd ..
+
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v1.0.${{ github.run_number }}
+        name: Release v1.0.${{ github.run_number }}
+        draft: false
+        prerelease: false
+        fail_on_unmatched_files: false
+        append_body: true
+        files: |
+          *.zip
+          *.tar.gz
+        generate_release_notes: true
+
+
+  ubuntu-cpu-build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        arch: [linux/amd64, linux/arm/v7, linux/arm64/v8, linux/ppc64le, linux/riscv64]
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Build ${{ matrix.arch }}
+      run: |
+        docker run --platform ${{ matrix.arch }} --rm \
+          -v ${{ github.workspace }}:/workspace \
+          -w /workspace ubuntu:25.04 /bin/sh -c '
+          
+          # 开始构建
+          bash build_linux.sh'
+
+    - name: Build Project (Linux)
+      run: |
+        cd Release
+        ARCH_STR="${{ matrix.arch }}"
+        ARCH_NAME="${ARCH_STR//\//-}"
+        tar -czvf ../autotalk-cpu-${ARCH_NAME}.tar.gz .
+        cd ..
+
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v1.0.${{ github.run_number }}
+        name: Release v1.0.${{ github.run_number }}
+        draft: false
+        prerelease: false
+        fail_on_unmatched_files: false
+        append_body: true
+        files: |
+          *.zip
+          *.tar.gz
+        generate_release_notes: true
+
+  macos-gpu-build:
+    strategy:
+      matrix:
+        os: [macos-latest]
+        
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: Set up Python 3.9.6
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9.12
+
+    - name: Build
+      run: |
+        bash build_macos.sh --gpu
+
+    - name: Build Project (Linux)
+      run: |
+        cd Release
+        tar -czvf ../autotalk-gpu-macos.tar.gz .
+        cd ..
+
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v1.0.${{ github.run_number }}
+        name: Release v1.0.${{ github.run_number }}
+        draft: false
+        prerelease: false
+        fail_on_unmatched_files: false
+        append_body: true
+        files: |
+          *.zip
+          *.tar.gz
+        generate_release_notes: true
+
+
+  windows-gpu-build:
+    strategy:
+      matrix:
+        os: [windows-latest]
+        
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: Set up Python 3.9.6
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9.12
+
+    - name: Set up MSVC (Windows)
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Install CMake (Windows)
+      run: |
+        choco install cmake
+
+    - name: Install CUDA Toolkit (Windows)
+      uses: Jimver/cuda-toolkit@v0.2.23
+      with:
+        cuda: '12.6.3'
+
+    - name: Build
+      run: |
+        bash build.sh --gpu
+
+    - name: Build Project (Linux)
+      run: |
+        cd Release
+        tar -czvf ../autotalk-gpu-windows.tar.gz .
+        cd ..
+
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v1.0.${{ github.run_number }}
+        name: Release v1.0.${{ github.run_number }}
+        draft: false
+        prerelease: false
+        fail_on_unmatched_files: false
+        append_body: true
+        files: |
+          *.zip
+          *.tar.gz
+        generate_release_notes: true
